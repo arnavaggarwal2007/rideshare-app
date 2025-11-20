@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "Rideshare",
+    "slug": "rideshare",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "ffffff"
+    },
+    "ios": {
+      "bundleIdentifier": "com.company.rideshare",
+      "buildNumber": "1",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.company.rideshare",
+      "versionCode": "1",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "ffffff"
+      }
+    }
+  }
+}
