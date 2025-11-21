@@ -5,9 +5,16 @@ node_modules/
 
 # Expo
 .expo/
+.expo-shared/
 dist/
 web-build/
 expo-env.d.ts
+
+# Firebase config
+firebaseConfig.js
+
+# Node modules
+node_modules/
 
 # Native
 .kotlin/
@@ -31,6 +38,7 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
 
 # typescript
