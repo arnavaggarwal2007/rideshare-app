@@ -1,5 +1,5 @@
 import React from 'react';
-import AuthScreen from './screen/AuthScreen';
+import AuthScreen from './screens/AuthScreen.js';
 
 export default function App() {
   return <AuthScreen />;
