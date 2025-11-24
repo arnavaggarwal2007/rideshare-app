@@ -1,6 +1,7 @@
 // Authentication screen to handle sign in and sign up
 import { Lato_400Regular, Lato_700Bold } from '@expo-google-fonts/lato';
 import { Montserrat_400Regular, Montserrat_600SemiBold, Montserrat_700Bold, useFonts } from '@expo-google-fonts/montserrat';
+import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from "react-native";
 
@@ -85,7 +86,7 @@ import {
                 );
                 Alert.alert(
                     'Success! 🎉',
-                    'Your account has been created successfully!',
+                    `Your account has been created successfully! ${email}`,
                     [{ test: 'OK' }]
                 );
 
@@ -99,7 +100,7 @@ import {
 
                 Alert.alert(
                     'Welcome back! 👋',
-                    'Signed in as ${userCredential.user.email}',
+                    `Signed in as ${userCredential.user.email}`,
                     [{ test: 'OK' }]
                 );
 
@@ -158,7 +159,7 @@ import {
             await sendPasswordResetEmail(auth, email);
             Alert.alert(
                 'Email sent!',
-                'Password reset instructions have been sent to ${email}',
+                `Password reset instructions have been sent to ${email}`,
                 [{ text: 'OK' }]
             );
         } catch (error) {
@@ -230,7 +231,11 @@ import {
                         style={styles.eyeIcon}
                         onPress={() => setShowPassword(!showPassword)}
                         >
-                            <Text style={styles.eyeText}>{showPassword ? '👀' : '🫣'}</Text>
+                            <Ionicons
+                            name={showPassword ? "eye-outline" : "eye-off-outline"}
+                            size={22}
+                            color="#3C4F5A"
+                            />
                         </TouchableOpacity>
                     </View>
                     {isSignUp && (
@@ -248,9 +253,11 @@ import {
                             style={styles.eyeIcon}
                             onPress={() => setShowConfirmPassword(!showConfirmPassword)}
                             >
-                                <Text style={styles.eyeIcon}>
-                                    {showConfirmPassword ? '👀' : '🫣'}
-                                </Text>
+                                <Ionicons
+                                name={showConfirmPassword ? "eye-outline" : "eye-off-outline"}
+                                size={22}
+                                color="#3C4F5A"
+                                />
                             </TouchableOpacity>
                         </View>
                     )}
@@ -290,7 +297,11 @@ import {
                             </Text>
                         </Text>
                     </TouchableOpacity>
-                    <Text style={styles.divider}>or</Text>
+                    <View style={styles.dividerContainer}>
+                        <View style={styles.dividerLine} />
+                        <Text style={styles.dividerText}>or</Text>
+                        <View style={styles.dividerLine} />
+                    </View>
                     <TouchableOpacity
                     style={styles.socialButton}
                     disabled={true}
@@ -368,13 +379,14 @@ import {
     input: {
         backgroundColor: '#FAFBFC',
         borderRadius: 8,
-        pading: 16,
+        padding: 16,
         fontSize: 16,
         marginBottom: 12,
         borderWidth: 1,
         borderColor: '#E0E3E7',
         color: '#1A1A1A',
         fontFamily: 'Lato_400Regular',
+        height: 56,
     },
     passwordContainer: {
         flexDirection: 'row',
@@ -384,22 +396,27 @@ import {
         marginBottom: 12,
         borderWidth: 1,
         borderColor: '#E0E3E7',
-        paddingRight: 0,
+        height: 56,
     },
     passwordInput: {
         flex: 1,
-        padding: 16,
+        paddingLeft: 16,
+        paddingRight: 48,
         fontSize: 16,
         color: '#1A1A1A',
-        paddingRight: 0,
         fontFamily: 'Lato_400Regular',
+        height: '100%',
     },
     eyeIcon: {
-        padding: 12,
-        paddingRight: 16,
+        position: 'absolute',
+        right: 0,
+        height: '100%',
+        width: 48,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     eyeText: {
-        fontsize: 20,
+        fontSize: 20,
         color: '#3C4F5A',
     },
     forgotPasswordContainer: {
@@ -443,10 +460,19 @@ import {
         fontWeight: '600',
         fontFamily: 'Lato_700Bold',
     },
-    divider: {
-        textAlign: 'center',
-        color: '#7A8D99',
+    dividerContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
         marginVertical: 20,
+    },
+    dividerLine: {
+        flex: 1,
+        height: 1,
+        backgroundColor: '#E0E3E7',
+    },
+    dividerText: {
+        marginHorizontal: 12,
+        color: '#7A8D99',
         fontSize: 14,
         fontFamily: 'Lato_400Regular',
     },
