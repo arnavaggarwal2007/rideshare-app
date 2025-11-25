@@ -4,6 +4,7 @@ import { Montserrat_400Regular, Montserrat_600SemiBold, Montserrat_700Bold, useF
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from "react-native";
+import { router } from 'expo-router';
 
 import {
     Alert,
