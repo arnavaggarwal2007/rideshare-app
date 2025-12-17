@@ -1,4 +1,5 @@
-import { Picker } from '@react-native-picker/picker';
+import { Lato_400Regular, Lato_700Bold } from '@expo-google-fonts/lato';
+import { Montserrat_400Regular, Montserrat_600SemiBold, Montserrat_700Bold, useFonts } from '@expo-google-fonts/montserrat';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
@@ -16,17 +17,26 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import CustomDropdown from '../components/CustomDropdown';
 import { auth, db } from '../firebaseConfig';
 // import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 // import { Activity } from 'react';
 
 const ProfileSetupScreen = () => {
+    const [fontsLoaded] = useFonts({
+        Montserrat_400Regular,
+        Montserrat_600SemiBold,
+        Montserrat_700Bold,
+        Lato_400Regular,
+        Lato_700Bold,
+    });
+    
     const [fullName, setFullName] = useState('');
-    const [school, setSchool] = useState('');
-    const [major, setMajor] = useState('');
-    const [gradYear, setGradYear] = useState('');
+    const [school, setSchool] = useState('Select your school');
+    const [major, setMajor] = useState('Select Major');
+    const [gradYear, setGradYear] = useState('Select Year');
     const [bio, setBio] = useState('');
-    const [pronouns, setPronouns] = useState('');
+    const [pronouns, setPronouns] = useState('Prefer not to say');
     const [profileImage, setProfileImage] = useState(null);
     const [loading, setLoading] = useState(false);
 
@@ -207,6 +217,14 @@ const ProfileSetupScreen = () => {
         }
     };
 
+    if (!fontsLoaded) {
+        return (
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#2774AE" />
+            </View>
+        );
+    }
+
     return (
         <KeyboardAvoidingView
         style={styles.container}
@@ -240,89 +258,45 @@ const ProfileSetupScreen = () => {
                 </TouchableOpacity>
                 {/* Full Name */}
                 <View style={styles.inputGroup}>
-                    <Text style={styles.label}>
-                        Full Name<Text style={styles.required}>*</Text>
-                    </Text>
+                    <Text style={styles.label}>Full Name<Text style={styles.required}>*</Text></Text>
                     <TextInput
-                    style={styles.input}
+                    style={[styles.input]}
                     placeholder="Jane Doe"
                     placeholderTextColor="#7A8D99"
                     value={fullName}
-                    onchangeText={(text) => setFullName(text)}
-                    autocapitalize="words"
+                    onChangeText={setFullName}
+                    autoCapitalize='words'
                     autoCorrect={false}
                     autoComplete="name"
                     />
                 </View>
                 {/* School/University */}
-                <View style={styles.inputGroup}>
-                    <Text style={styles.label}>
-                        School/University<Text style={styles.required}>*</Text>
-                    </Text>
-                    <View style={styles.pickerContainer}>
-                        <Picker
-                        selectedValue={school}
-                        onValueChange={(itemValue) => setSchool(itemValue)}
-                        style={styles.picker}
-                        itemStyle={styles.pickerItem}
-                        >
-                            {schools.map((schoolOption, index) => (
-                                <Picker.Item
-                                key={index}
-                                label={schoolOption}
-                                value={schoolOption}
-                                // color={schoolOption === 'Select your school' ? "#7A8D99" : "#1A1A1A"}
-                                />
-                            ))}
-                        </Picker>
-                    </View>
-                </View>
+                <CustomDropdown
+                    label="School/University"
+                    value={school}
+                    options={schools}
+                    onSelect={setSchool}
+                    placeholder="Select your school"
+                    required={true}
+                />
                 {/* Major */}
-                <View style={styles.inputGroup}>
-                    <Text style={styles.label}>
-                        Major<Text style={styles.required}>*</Text>
-                    </Text>
-                    <View style={styles.pickerContainer}>
-                        <Picker
-                        selectedValue={major}
-                        onValueChange={(itemValue) => setMajor(itemValue)}
-                        style={styles.picker}
-                        itemStyle={styles.pickerItems}
-                        >
-                            {majors.map((majorOption, index) => (
-                                <Picker.Item
-                                key={index}
-                                label={majorOption}
-                                value={majorOption}
-                                // color={majorOption === 'Select Major' ? "#7A8D99" : "#1A1A1A"}
-                                />
-                            ))}
-                        </Picker>
-                    </View>
-                </View>
+                <CustomDropdown
+                    label="Major"
+                    value={major}
+                    options={majors}
+                    onSelect={setMajor}
+                    placeholder="Select Major"
+                    required={true}
+                />
                 {/* Graduation Year */}
-                <View style={styles.inputGroup}>
-                    <Text style={styles.label}>
-                        Graduation Year<Text style={styles.required}>*</Text>
-                    </Text>
-                    <View style={styles.pickerContainer}>
-                        <Picker
-                        selectedValue={gradYear}
-                        onValueChange={(itemValue) => setGradYear(itemValue)}
-                        style={styles.picker}
-                        itemStyle={styles.pickerItem}
-                        >
-                            {years.map((year, index) => (
-                                <Picker.Item
-                                key={index}
-                                label={year}
-                                value={year}
-                                // color={year === 'Select Year' ? "#7A8D99" : "#1A1A1A"}
-                                />
-                            ))}
-                        </Picker>
-                    </View>
-                </View>
+                <CustomDropdown
+                    label="Graduation Year"
+                    value={gradYear}
+                    options={years}
+                    onSelect={setGradYear}
+                    placeholder="Select Year"
+                    required={true}
+                />
                 {/* Bio */}
                 <View style={styles.inputGroup}>
                     <Text style={styles.label}>Bio (optional)</Text>
@@ -339,26 +313,14 @@ const ProfileSetupScreen = () => {
                     <Text style={styles.charCount}>{bio.length}/200</Text>
                 </View>
                 {/* Pronouns */}
-                <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Pronouns (optional)</Text>
-                    <View style={styles.pickerContainer}>
-                        <Picker
-                        selectedValue={pronouns || 'Prefer not to say'}
-                        onValueChange={(itemValue) => setPronouns(itemValue)}
-                        style={styles.picker}
-                        itemStyle={styles.pickerItem}
-                        >
-                            {pronounOptions.map((pronounOption, index) => (
-                                <Picker.Item
-                                key={index}
-                                label={pronounOption}
-                                value={pronounOption}
-                                // color="#1A1A1A"
-                                />
-                            ))}
-                        </Picker>
-                    </View>
-                </View>
+                <CustomDropdown
+                    label="Pronouns"
+                    value={pronouns}
+                    options={pronounOptions}
+                    onSelect={setPronouns}
+                    placeholder="Prefer not to say"
+                    required={false}
+                />
                 {/* Get Started Button */}
                 <TouchableOpacity
                 style={[styles.button, loading && styles.buttonDisabled]}
@@ -392,12 +354,14 @@ const styles = StyleSheet.create({
         color: '#2774AE',
         textAlign: 'center',
         marginBottom: 8,
+        fontFamily: 'Montserrat_700Bold',
     },
     subtitle: {
         fontSize: 14,
         color: '#3C4F5A',
         textAlign: 'center',
         marginBottom: 32,
+        fontFamily: 'Lato_400Regular',
     },
     photoContainer: {
         alignSelf: 'center',
@@ -428,6 +392,7 @@ const styles = StyleSheet.create({
         color: '#2774AE',
         textAlign: 'center',
         marginBottom: 32,
+        fontFamily: 'Lato-400Regular',
     },
     inputGroup: {
         marginBottom: 20,
@@ -437,10 +402,12 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#1A1A1A',
         marginBottom: 8,
+        fontFamily: 'Montserrat_600SemiBold',
     },
     required: {
         color: '#FF0000',
         fontWeight: '600',
+        fontFamily: 'Montserrat_600SemiBold',
     },
     input: {
         backgroundColor: '#F7F9FB',
@@ -460,21 +427,7 @@ const styles = StyleSheet.create({
         color: '#7A8D99',
         textAlign: 'right',
         marginTop: 4,
-    },
-    pickerContainer: {
-        backgroundColor: '#F7F9FB',
-        borderWidth: 1,
-        borderColor: '#E0E3E7',
-        borderRadius: 8,
-        overflow: 'hidden',
-    },
-    picker: {
-        height: 50,
-        color: '#1A1A1A',
-    },
-    pickerItem: {
-        height: 50,
-        fontSize: 16,
+        fontFamily: 'Lato_400Regular',
     },
     button: {
         backgroundColor: '#2774AE',
@@ -490,7 +443,14 @@ const styles = StyleSheet.create({
     buttonText: {
         color: '#FFFFFF',
         fontSize: 16,
-        fontWeigth: '600',
+        fontWeight: '600',
+        fontFamily: 'Montserrat_600SemiBold',
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
     },
 });
 
