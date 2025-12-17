@@ -1,7 +1,7 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { signOut } from 'firebase/auth';
-import { auth } from '../../firebaseConfig';
 import { router } from 'expo-router';
+import { signOut } from 'firebase/auth';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { auth } from '../../firebaseConfig';
 
 export default function HomeScreen() {
   const handleSignOut = async () => {
