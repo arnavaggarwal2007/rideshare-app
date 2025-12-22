@@ -1,6 +1,5 @@
 import { Lato_400Regular, Lato_700Bold } from '@expo-google-fonts/lato';
 import { Montserrat_400Regular, Montserrat_600SemiBold, Montserrat_700Bold, useFonts } from '@expo-google-fonts/montserrat';
-import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useState } from 'react';
