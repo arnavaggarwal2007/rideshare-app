@@ -17,8 +17,8 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import CustomDropdown from '../components/CustomDropdown';
-import { auth, db } from '../firebaseConfig';
+import CustomDropdown from '../../components/CustomDropdown';
+import { auth, db } from '../../firebaseConfig';
 // import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 // import { Activity } from 'react';
 
