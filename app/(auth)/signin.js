@@ -1,4 +1,5 @@
-import { Lato_400Regular, Montserrat_700Bold } from '@expo-google-fonts/montserrat';
+import { Lato_400Regular } from '@expo-google-fonts/lato';
+import { Montserrat_700Bold } from '@expo-google-fonts/montserrat';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFonts } from 'expo-font';
 import { useRouter } from 'expo-router';

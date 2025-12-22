@@ -80,8 +80,8 @@ export default function SignUpScreen() {
 
     try {
       await createUserWithEmailAndPassword(auth, email, password);
-      // Auth state changes → useAuth hook detects → app/_layout routes to profile-setup
-      router.push('profile-setup');
+      // Auth state changes will trigger root layout redirect to profile-setup
+      // No explicit navigation needed here
     } catch (error) {
       if (error.code === 'auth/email-already-in-use') {
         setErrorMessage('Email already registered. Please sign in instead.');
@@ -102,7 +102,7 @@ export default function SignUpScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Join RideBoard today</Text>
+          <Text style={styles.subtitle}>Join RideShare today</Text>
         </View>
 
         {errorMessage && (
@@ -192,7 +192,7 @@ export default function SignUpScreen() {
 
         <View style={styles.signInSection}>
           <Text style={styles.signInText}>Already have an account? </Text>
-          <TouchableOpacity onPress={() => router.back()} disabled={loading}>
+          <TouchableOpacity onPress={() => router.push('/signin')} disabled={loading}>
             <Text style={styles.signInLink}>Sign In</Text>
           </TouchableOpacity>
         </View>

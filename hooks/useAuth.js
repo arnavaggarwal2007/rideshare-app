@@ -19,17 +19,23 @@ export function useAuth() {
   }, []);
 
   useEffect(() => {
+    let active = true;
+
     const checkProfileCompletion = async () => {
       setProfileLoading(true);
 
       if (!user) {
-        setProfileLoading(false);
-        setProfileComplete(false);
+        if (active) {
+          setProfileLoading(false);
+          setProfileComplete(false);
+        }
         return;
       }
 
       try {
         const userDoc = await getDoc(doc(db, 'users', user.uid));
+
+        if (!active) return;
 
         if (userDoc.exists()) {
           const userData = userDoc.data();
@@ -45,14 +51,18 @@ export function useAuth() {
           setProfileComplete(false);
         }
       } catch (error) {
-        console.error('Error checking profile:', error);
-        setProfileComplete(false);
+        if (__DEV__) console.error('Error checking profile:', error);
+        if (active) setProfileComplete(false);
       } finally {
-        setProfileLoading(false);
+        if (active) setProfileLoading(false);
       }
     };
 
     checkProfileCompletion();
+
+    return () => {
+      active = false;
+    };
   }, [user]);
 
   const loading = authLoading || profileLoading;

@@ -5,7 +5,6 @@ export default function AuthLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
-        animationEnabled: true,
         gestureEnabled: true,
       }}
     >
@@ -13,7 +12,6 @@ export default function AuthLayout() {
         name="signin" 
         options={{ 
           title: 'Sign In',
-          animationTypeForReplace: true,
         }} 
       />
       
@@ -21,7 +19,6 @@ export default function AuthLayout() {
         name="signup" 
         options={{ 
           title: 'Sign Up',
-          animationTypeForReplace: true,
         }} 
       />
       

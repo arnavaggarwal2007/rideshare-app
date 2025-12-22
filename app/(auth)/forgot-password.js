@@ -6,7 +6,7 @@ import { Montserrat_700Bold, useFonts } from '@expo-google-fonts/montserrat';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { sendPasswordResetEmail } from 'firebase/auth';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Keyboard,
@@ -60,12 +60,14 @@ export default function ForgotPasswordScreen() {
       setSuccessMessage('Password reset email sent! Check your inbox.');
       setEmail('');
 
-      // Auto-navigate back after 3 seconds
-      setTimeout(() => {
+      // Auto-navigate back after 3 seconds with cleanup on unmount
+      const id = setTimeout(() => {
         router.back();
       }, 3000);
+      // Store timeout id for cleanup
+      timeoutRef.current = id;
     } catch (error) {
-      console.error('Password reset error:', error.code, error.message);
+      if (__DEV__) console.error('Password reset error:', error.code, error.message);
       if (error.code === 'auth/user-not-found') {
         setErrorMessage('No account found with this email address');
       } else if (error.code === 'auth/invalid-email') {
@@ -77,6 +79,14 @@ export default function ForgotPasswordScreen() {
       setLoading(false);
     }
   };
+
+  // track timeout id to clear on unmount
+  const timeoutRef = useRef(null);
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
   return (
     <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>

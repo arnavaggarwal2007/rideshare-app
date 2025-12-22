@@ -102,27 +102,12 @@ const ProfileSetupScreen = () => {
     ];
 
     const pickImage = async () => {
-        const { status } = await
-        ImagePicker.requestMediaLibraryPermissionsAsync();
-
-        if (status != 'granted') {
-            Alert.alert(
-                'Permission Required',
-                'Sorry, we need camera roll permissions to upload a profile photo.'
-            );
-            return;
-        }
-
-        const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.7,
-        });
-
-        if (!result.canceled) {
-            setProfileImage(result.assets[0].uri);
-        }
+        // Photo uploads disabled on free Firebase plan
+        Alert.alert(
+            'Photo Upload Disabled',
+            'Profile photos are currently disabled. You can add one later when storage is enabled.'
+        );
+        return;
     };
 
     // const uploadImage = async (uri) => {
@@ -176,10 +161,13 @@ const ProfileSetupScreen = () => {
 
         try {
             const user = auth.currentUser;
-            let photoURL = null;
-            if (profileImage) {
-                photoURL = await uploadImage(profileImage);
+            if (!user || !user.uid) {
+                Alert.alert('Not signed in', 'Please sign in and try again.');
+                setLoading(false);
+                return;
             }
+            // Photo uploads are disabled on the current plan; default to empty string
+            const photoURL = '';
 
             await setDoc(doc(db, 'users', user.uid), {
                 uid: user.uid,
@@ -190,7 +178,7 @@ const ProfileSetupScreen = () => {
                 graduationYear: gradYear,
                 bio: bio.trim() || '',
                 pronouns: pronouns != 'Prefer not to say' ? pronouns : '',
-                photoURL: photoURL || '',
+                photoURL: photoURL,
                 profileComplete: true,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
