@@ -6,9 +6,9 @@ import { Redirect } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
 
 export default function Index() {
-  const { user, profileComplete, loading } = useAuth();
+  const { user, profileComplete, loading, profileLoading } = useAuth();
 
-  if (loading) {
+  if (loading || profileLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F7F9FB' }}>
         <ActivityIndicator size="large" color="#2774AE" />
@@ -18,14 +18,14 @@ export default function Index() {
 
   // Not authenticated - go to signup
   if (!user) {
-    return <Redirect href="/signup" />;
+    return <Redirect href="/(auth)/signup" />;
   }
 
   // Authenticated but profile incomplete - go to profile setup
   if (!profileComplete) {
-    return <Redirect href="/profile-setup" />;
+    return <Redirect href="/(auth)/profile-setup" />;
   }
 
   // Authenticated and profile complete - go to home
-  return <Redirect href="/home" />;
+  return <Redirect href="/(tabs)/home" />;
 }

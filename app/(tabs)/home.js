@@ -7,7 +7,7 @@ export default function HomeScreen() {
   const handleSignOut = async () => {
     try {
       await signOut(auth);
-      router.replace('/');
+      router.replace('/(auth)/signin');
     } catch (error) {
       console.error('Sign out error:', error);
     }

@@ -13,16 +13,37 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
     
+    // Validate emergency contacts array
+    function hasValidEmergencyContacts() {
+      return !request.resource.data.keys().hasAny(['emergencyContacts']) ||
+        (request.resource.data.emergencyContacts is list &&
+         request.resource.data.emergencyContacts.size() <= 3);
+    }
+    
+    // Validate ride preferences object
+    function hasValidRidePreferences() {
+      let prefs = request.resource.data;
+      return !prefs.keys().hasAny(['ridePreferences']) ||
+        (prefs.ridePreferences is map &&
+         prefs.ridePreferences.keys().hasAll(['musicTaste', 'chattiness', 'petFriendly', 'smokingOk']) &&
+         prefs.ridePreferences.petFriendly is bool &&
+         prefs.ridePreferences.smokingOk is bool);
+    }
+    
     // Users collection - users can read and write their own documents
     match /users/{userId} {
       // Allow user to read their own profile
       allow read: if isSignedIn() && isOwner(userId);
       
       // Allow user to create their own profile (for signup flow)
-      allow create: if isSignedIn() && isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId) && 
+                       hasValidEmergencyContacts() && 
+                       hasValidRidePreferences();
       
       // Allow user to update their own profile
-      allow update: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId) && 
+                       hasValidEmergencyContacts() && 
+                       hasValidRidePreferences();
       
       // Don't allow deletion for now
       allow delete: if false;

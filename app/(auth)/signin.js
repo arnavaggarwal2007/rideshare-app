@@ -54,7 +54,7 @@ export default function SignInScreen() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // Auth state changes → App/_layout.js detects → Routes to app
+      // Auth context will handle redirect based on auth/profile state
     } catch (error) {
       if (error.code === 'auth/user-not-found') {
         setErrorMessage('No account found with this email');

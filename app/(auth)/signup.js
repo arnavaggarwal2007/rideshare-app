@@ -79,9 +79,19 @@ export default function SignUpScreen() {
     setLoading(true);
 
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      // Auth state changes will trigger root layout redirect to profile-setup
-      // No explicit navigation needed here
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      // Create Firestore profile document with UID as doc ID
+      const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
+      const { db } = await import('../../firebaseConfig');
+      await setDoc(doc(db, 'users', user.uid), {
+        uid: user.uid,
+        email: user.email,
+        profileComplete: false,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      // Auth context will handle redirect to profile setup
     } catch (error) {
       if (error.code === 'auth/email-already-in-use') {
         setErrorMessage('Email already registered. Please sign in instead.');

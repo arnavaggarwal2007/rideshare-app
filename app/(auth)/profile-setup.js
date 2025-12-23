@@ -1,8 +1,9 @@
 import { Lato_400Regular, Lato_700Bold } from '@expo-google-fonts/lato';
 import { Montserrat_400Regular, Montserrat_600SemiBold, Montserrat_700Bold, useFonts } from '@expo-google-fonts/montserrat';
 import { router } from 'expo-router';
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useState } from 'react';
+import { useAuth } from '../../hooks/AuthContext';
 import {
     ActivityIndicator,
     Alert,
@@ -17,6 +18,8 @@ import {
     View,
 } from 'react-native';
 import CustomDropdown from '../../components/CustomDropdown';
+import EmergencyContactInput from '../../components/EmergencyContactInput';
+import PreferenceToggle from '../../components/PreferenceToggle';
 import { auth, db } from '../../firebaseConfig';
 // import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 // import { Activity } from 'react';
@@ -38,6 +41,20 @@ const ProfileSetupScreen = () => {
     const [pronouns, setPronouns] = useState('Prefer not to say');
     const [profileImage, setProfileImage] = useState(null);
     const [loading, setLoading] = useState(false);
+    
+    // Emergency contacts (max 3)
+    const [emergencyContacts, setEmergencyContacts] = useState([]);
+
+    // Access refreshProfile from useAuth
+    const { refreshProfile } = useAuth();
+    
+    // Ride preferences
+    const [ridePreferences, setRidePreferences] = useState({
+        musicTaste: 'Any',
+        chattiness: 'Moderate',
+        petFriendly: false,
+        smokingOk: false,
+    });
 
     const schools = [
         'Select your school',
@@ -165,10 +182,33 @@ const ProfileSetupScreen = () => {
                 setLoading(false);
                 return;
             }
+
+            // Check if profile already exists
+            const userDocRef = doc(db, 'users', user.uid);
+            const userDocSnap = await getDoc(userDocRef);
+            console.log('[ProfileSetup] Firestore userDocSnap.exists:', userDocSnap.exists());
+            if (userDocSnap.exists()) {
+                console.log('[ProfileSetup] Firestore userDocSnap.data:', userDocSnap.data());
+            }
+            if (userDocSnap.exists() && userDocSnap.data().profileComplete) {
+                Alert.alert(
+                    'Profile Already Exists',
+                    'You already have a completed profile. Redirecting to home.',
+                    [
+                        {
+                            text: 'OK',
+                            onPress: () => router.replace('/(tabs)/home'),
+                        }
+                    ]
+                );
+                setLoading(false);
+                return;
+            }
+
             // Photo uploads are disabled on the current plan; default to empty string
             const photoURL = '';
 
-            await setDoc(doc(db, 'users', user.uid), {
+            await setDoc(userDocRef, {
                 uid: user.uid,
                 email: user.email,
                 name: fullName.trim(),
@@ -178,10 +218,15 @@ const ProfileSetupScreen = () => {
                 bio: bio.trim() || '',
                 pronouns: pronouns != 'Prefer not to say' ? pronouns : '',
                 photoURL: photoURL,
+                emergencyContacts: emergencyContacts,
+                ridePreferences: ridePreferences,
                 profileComplete: true,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
             });
+
+            // Refresh profile state so navigation guard sees profileComplete immediately
+            await refreshProfile(user.uid);
 
             Alert.alert(
                 'Profile Created! 🎉',
@@ -308,6 +353,111 @@ const ProfileSetupScreen = () => {
                     placeholder="Prefer not to say"
                     required={false}
                 />
+                
+                {/* Emergency Contacts */}
+                <View style={styles.sectionContainer}>
+                    <Text style={styles.sectionTitle}>Emergency Contacts (Optional)</Text>
+                    <Text style={styles.sectionSubtitle}>
+                        Add up to 3 emergency contacts for safety purposes
+                    </Text>
+                    
+                    {emergencyContacts.map((contact, index) => (
+                        <EmergencyContactInput
+                            key={index}
+                            contact={contact}
+                            index={index}
+                            onUpdate={(idx, field, value) => {
+                                const updated = [...emergencyContacts];
+                                updated[idx] = { ...updated[idx], [field]: value };
+                                setEmergencyContacts(updated);
+                            }}
+                            onRemove={() => {
+                                setEmergencyContacts(emergencyContacts.filter((_, i) => i !== index));
+                            }}
+                        />
+                    ))}
+                    
+                    {emergencyContacts.length < 3 && (
+                        <TouchableOpacity
+                            style={styles.addButton}
+                            onPress={() => {
+                                setEmergencyContacts([
+                                    ...emergencyContacts,
+                                    { name: '', phone: '', relationship: '' },
+                                ]);
+                            }}
+                            activeOpacity={0.7}
+                        >
+                            <Text style={styles.addButtonText}>+ Add Emergency Contact</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
+                
+                {/* Ride Preferences */}
+                <View style={styles.sectionContainer}>
+                    <Text style={styles.sectionTitle}>Ride Preferences (Optional)</Text>
+                    <Text style={styles.sectionSubtitle}>
+                        Help us match you with compatible riders
+                    </Text>
+                    
+                    <View style={styles.preferenceGroup}>
+                        <Text style={styles.preferenceLabel}>Music Preference</Text>
+                        <CustomDropdown
+                            options={[
+                                'Any',
+                                'Pop',
+                                'Rock',
+                                'Hip-Hop',
+                                'Country',
+                                'Classical',
+                                'Indie',
+                                'Electronic',
+                                'Quiet (No Music)',
+                            ]}
+                            value={ridePreferences.musicTaste}
+                            onSelect={(value) =>
+                                setRidePreferences({ ...ridePreferences, musicTaste: value })
+                            }
+                            placeholder="Any"
+                        />
+                    </View>
+                    
+                    <View style={styles.preferenceGroup}>
+                        <Text style={styles.preferenceLabel}>Conversation Level</Text>
+                        <CustomDropdown
+                            options={['Quiet', 'Moderate', 'Chatty']}
+                            value={ridePreferences.chattiness}
+                            onSelect={(value) =>
+                                setRidePreferences({ ...ridePreferences, chattiness: value })
+                            }
+                            placeholder="Moderate"
+                        />
+                    </View>
+                    
+                    <View style={styles.toggleGroup}>
+                        <PreferenceToggle
+                            label="Pet-Friendly"
+                            value={ridePreferences.petFriendly}
+                            onToggle={() =>
+                                setRidePreferences({
+                                    ...ridePreferences,
+                                    petFriendly: !ridePreferences.petFriendly,
+                                })
+                            }
+                        />
+                        <PreferenceToggle
+                            label="Smoking OK"
+                            value={ridePreferences.smokingOk}
+                            onToggle={() =>
+                                setRidePreferences({
+                                    ...ridePreferences,
+                                    smokingOk: !ridePreferences.smokingOk,
+                                })
+                            }
+                        />
+                    </View>
+                </View>
+                
                 {/* Get Started Button */}
                 <TouchableOpacity
                 style={[styles.button, loading && styles.buttonDisabled]}
@@ -432,6 +582,49 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '600',
         fontFamily: 'Montserrat_600SemiBold',
+    },
+    sectionContainer: {
+        marginTop: 24,
+        marginBottom: 20,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontFamily: 'Montserrat_700Bold',
+        color: '#2774AE',
+        marginBottom: 6,
+    },
+    sectionSubtitle: {
+        fontSize: 13,
+        fontFamily: 'Lato_400Regular',
+        color: '#7A8D99',
+        marginBottom: 16,
+    },
+    addButton: {
+        backgroundColor: '#F0F7FF',
+        borderWidth: 1.5,
+        borderColor: '#2774AE',
+        borderStyle: 'dashed',
+        borderRadius: 8,
+        paddingVertical: 14,
+        alignItems: 'center',
+        marginTop: 8,
+    },
+    addButtonText: {
+        fontFamily: 'Montserrat_600SemiBold',
+        fontSize: 14,
+        color: '#2774AE',
+    },
+    preferenceGroup: {
+        marginBottom: 16,
+    },
+    preferenceLabel: {
+        fontSize: 14,
+        fontFamily: 'Montserrat_600SemiBold',
+        color: '#1A1A1A',
+        marginBottom: 8,
+    },
+    toggleGroup: {
+        marginTop: 8,
     },
     loadingContainer: {
         flex: 1,

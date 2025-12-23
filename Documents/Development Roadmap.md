@@ -5,11 +5,22 @@
 **GITHUB KEY:**  
 **github\_pat\_11AVYQN5I0cg0M0ZKPdrZq\_66Gi6KQ6wwv83Q60oBVYVkUMvt7CjMAro064ZquNkJ5F5TZ56Z5eJorrxTo**
 
-**FROM WEEK 2 DAYS 1-2 FEATURES STILL NEEDED**
+**Week 2 Days 1-2 Status (Updated 2025-12-22)**
 
-* **Emergency Contacts Section \- Add 2-3 emergency contact fields (name, phone, email) to the profile setup**  
-* **Preferences/Tags Section \- Add quick preference toggles for music taste, chattiness level, pet-friendly, smoking preference**  
-* **Test the full flow \- Sign up → Profile setup with all new fields → Verify data saves to Firestore correctly**
+* ✅ Emergency Contacts: Implemented name, phone, relationship (up to 3). Email field deferred.
+* ✅ Preferences/Tags: Implemented music, chattiness, pet-friendly, smoking.
+* ✅ Flow: Signup → Profile setup (with new fields) → Firestore save verified after redirects fix.
+* Deferred (polish): Profile photo upload; emergency contact email field; optional school autocomplete.
+
+**Week 2 Days 3-4 Status (Updated 2025-12-22)**
+
+* ✅ Edit Profile: Modal migration, full form, Firestore update, validation, UI polish, navigation fix complete.
+* ✅ Profile completion checker: Required fields validated, error handling in place.
+* ⚠️ View other user profiles: Not yet implemented (next priority for navigation polish).
+* ✅ Navigation: Tab bar, modal, and auth flow working. Minor home flicker after edit-profile save is known and accepted for now.
+* ✅ Emergency Contacts: UI and logic complete.
+* ✅ Preferences/Tags: UI and logic complete.
+* ✅ Full flow tested: Profile → Edit → Save → Back, Firestore updates verified.
 
 ---
 
@@ -56,9 +67,9 @@
 | Login/logout functionality | P0 | 4h | Firebase Auth |
 | Password reset | P1 | 3h | Firebase Auth |
 | Profile creation (name, photo, school, major, year) | P0 | 6h | Firebase Storage, Firestore |
-| Edit profile | P1 | 4h | Firestore |
-| View other user profiles | P1 | 3h | Firestore |
-| Profile completion checker (ensure required fields filled) | P1 | 2h | \- |
+| Edit profile | P1 | 4h | Firestore | ✅ Complete (modal, full form, save logic, polish)
+| View other user profiles | P1 | 3h | Firestore | ⬜ Not started
+| Profile completion checker (ensure required fields filled) | P1 | 2h | - | ✅ Complete |
 
 **Total P0/P1: 34 hours**
 
@@ -232,7 +243,7 @@ users/{userId}
 {  
 "name": "Mom",  
 "phoneNumber": "+14155555678",  
-"relationship": "Parent"  
+"relationship": "
 }  
 \],  
 "blockedUsers": \["userId1", "userId2"\], // array of blocked user IDs
@@ -3341,7 +3352,7 @@ ACTIVE: 'active',
 FULL: 'full',  
 IN\_PROGRESS: 'in\_progress',  
 COMPLETED: 'completed',  
-CANCELLED: 'cancelled',  
+CANCELLED: 'cancelled'  
 };
 
 **Form Validation**
@@ -3502,7 +3513,7 @@ minute: '2-digit',
 
 * \[ \] Terms of service written and hosted
 
-* \[ \] Age gate (17+) implemented
+* \[ \] Age rating determined (17+ due to user-generated content)
 
 * \[ \] Data collection disclosed
 
@@ -3943,4 +3954,12 @@ Feel free to ask for clarification on any section of this guide. I can provide:
 
 ---
 
-1. a-zA-Z0-9.\_%+- [↩︎](#bookmark=id.ave3ol2b5pmp)
+## Temporary Navigation Fixes (Dec 2025)
+
+- [ ] **Edit Profile button in Profile tab uses `router.replace` to swap the profile screen with the edit-profile screen in-place.**
+    - This is a temporary workaround due to Expo Router tab limitations.
+    - **Proper fix:** Should use a modal or stack route so that editing profile overlays or pushes on top of the profile screen, not replacing the tab. This will allow users to go back to their profile easily.
+    - Track this as a technical debt item and update navigation once Expo Router supports better modal/stack flows for tab screens.
+    - See: app/(tabs)/profile.js, Dec 2025
+
+---
