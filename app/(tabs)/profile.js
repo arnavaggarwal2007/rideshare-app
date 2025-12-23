@@ -1,13 +1,13 @@
 
 
-import { ScrollView, View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
-import { useAuth } from '../../hooks/AuthContext';
 import { Lato_400Regular } from '@expo-google-fonts/lato';
 import { Montserrat_700Bold, useFonts } from '@expo-google-fonts/montserrat';
+import { router } from 'expo-router';
 import { signOut } from 'firebase/auth';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { auth } from '../../firebaseConfig';
+import { useAuth } from '../../hooks/AuthContext';
 
 export default function ProfileScreen() {
   const { user, userProfile, loading } = useAuth();

@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
-import { ScrollView, View, Text, StyleSheet, ActivityIndicator, Image, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, router } from 'expo-router';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../../firebaseConfig';
 import { Lato_400Regular } from '@expo-google-fonts/lato';
 import { Montserrat_700Bold, useFonts } from '@expo-google-fonts/montserrat';
+import { router, useLocalSearchParams } from 'expo-router';
+import { doc, getDoc } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { db } from '../../firebaseConfig';
 
 export default function OtherUserProfileScreen() {
   const { id } = useLocalSearchParams();

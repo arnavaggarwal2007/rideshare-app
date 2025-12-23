@@ -1,15 +1,14 @@
-import { useState } from 'react';
-import { Alert } from 'react-native';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { db, auth } from '../../firebaseConfig';
-import { router } from 'expo-router';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { Lato_400Regular } from '@expo-google-fonts/lato';
 import { Montserrat_700Bold, useFonts } from '@expo-google-fonts/montserrat';
-import { useAuth } from '../../hooks/AuthContext';
+import { router } from 'expo-router';
+import { doc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { useState } from 'react';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import CustomDropdown from '../../components/CustomDropdown';
 import EmergencyContactInput from '../../components/EmergencyContactInput';
 import PreferenceToggle from '../../components/PreferenceToggle';
+import { auth, db } from '../../firebaseConfig';
+import { useAuth } from '../../hooks/AuthContext';
 
 export default function EditProfileScreen() {
   const { userProfile, loading } = useAuth();

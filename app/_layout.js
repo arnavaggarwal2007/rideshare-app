@@ -1,6 +1,6 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
-import { Text, ActivityIndicator, View } from 'react-native';
 import React from 'react';
+import { ActivityIndicator, Text, View } from 'react-native';
 import { useAuth } from '../hooks/AuthContext';
 
 /**

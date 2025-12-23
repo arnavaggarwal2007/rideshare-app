@@ -3,7 +3,6 @@ import { Montserrat_400Regular, Montserrat_600SemiBold, Montserrat_700Bold, useF
 import { router } from 'expo-router';
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useState } from 'react';
-import { useAuth } from '../../hooks/AuthContext';
 import {
     ActivityIndicator,
     Alert,
@@ -21,6 +20,7 @@ import CustomDropdown from '../../components/CustomDropdown';
 import EmergencyContactInput from '../../components/EmergencyContactInput';
 import PreferenceToggle from '../../components/PreferenceToggle';
 import { auth, db } from '../../firebaseConfig';
+import { useAuth } from '../../hooks/AuthContext';
 // import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 // import { Activity } from 'react';
 
