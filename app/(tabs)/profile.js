@@ -6,11 +6,13 @@ import { router } from 'expo-router';
 import { signOut } from 'firebase/auth';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
 import { auth } from '../../firebaseConfig';
-import { useAuth } from '../../hooks/AuthContext';
 
 export default function ProfileScreen() {
-  const { user, userProfile, loading } = useAuth();
+  const user = useSelector(state => state.auth.user);
+  const loading = useSelector(state => state.auth.loading);
+  const userProfile = useSelector(state => state.auth.userProfile);
   const [fontsLoaded] = useFonts({
     Montserrat_700Bold,
     Lato_400Regular,
@@ -56,7 +58,7 @@ export default function ProfileScreen() {
             userProfile.emergencyContacts.map((contact, idx) => (
               <View key={idx} style={{ marginBottom: 8 }}>
                 <Text style={styles.bodyText}>Name: {contact.name || '-'}</Text>
-                <Text style={styles.bodyText}>Phone: {contact.phoneNumber || '-'}</Text>
+                <Text style={styles.bodyText}>Phone: {contact.phone || '-'}</Text>
                 <Text style={styles.bodyText}>Relationship: {contact.relationship || '-'}</Text>
               </View>
             ))

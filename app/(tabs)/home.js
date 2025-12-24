@@ -1,12 +1,18 @@
 import { router } from 'expo-router';
 import { signOut } from 'firebase/auth';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
 import { auth } from '../../firebaseConfig';
+import { logout } from '../../store/slices/authSlice';
 
 export default function HomeScreen() {
+  const user = useSelector(state => state.auth.user);
+  const dispatch = useDispatch();
+
   const handleSignOut = async () => {
     try {
       await signOut(auth);
+      dispatch(logout());
       router.replace('/(auth)/signin');
     } catch (error) {
       console.error('Sign out error:', error);
@@ -17,7 +23,6 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <Text style={styles.title}>Welcome to Rideshare! 🚗</Text>
       <Text style={styles.subtitle}>Your profile is complete</Text>
-      
       <TouchableOpacity style={styles.button} onPress={handleSignOut}>
         <Text style={styles.buttonText}>Sign Out</Text>
       </TouchableOpacity>

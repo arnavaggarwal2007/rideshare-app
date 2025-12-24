@@ -12,6 +12,7 @@
 * ✅ Flow: Signup → Profile setup (with new fields) → Firestore save verified after redirects fix.
 * Deferred (polish): Profile photo upload; emergency contact email field; optional school autocomplete.
 
+
 **Week 2 Days 3-4 Status (Updated 2025-12-22)**
 
 * ✅ Edit Profile: Modal migration, full form, Firestore update, validation, UI polish, navigation fix complete.
@@ -22,7 +23,16 @@
 * ✅ Preferences/Tags: UI and logic complete.
 * ✅ Full flow tested: Profile → Edit → Save → Back, Firestore updates verified.
 
----
+**Week 2 Day 5 Status (Updated 2025-12-24)**
+
+* ✅ Redux Toolkit Store: Configured with dev/prod split, Redux Thunk enabled, persistence via AsyncStorage.
+* ✅ State Slices: authSlice, ridesSlice, tripsSlice all implemented with CRUD reducers and error/loading states.
+* ✅ Redux DevTools: Enabled in dev mode only, sensitive fields (stsTokenManager) sanitized.
+* ✅ Redux Persist: Configured to persist auth, rides, trips slices across app restarts.
+* ✅ AuthContext Integration: Redux syncs with Firebase Auth, AuthContext marked as legacy for future migration.
+* ✅ Error Handling Pattern: ErrorAlert component created and integrated into navigation guard.
+* ✅ Documentation: Migration strategy (MIGRATION.md) and async thunk guide (THUNK_GUIDE.md) complete.
+* Deferred: Async thunk integration (Week 3+), full AuthContext migration (Week 3+), profile photo upload (future polish).
 
 **Table of Contents**
 
@@ -42,7 +52,9 @@
 
 8. [Testing & Launch Checklist](#bookmark=id.3j7yutcoyq4r)
 
----
+
+
+
 
 **Feature Prioritization Matrix**
 
@@ -1248,17 +1260,25 @@ tabBarIcon: ({ color, size }) \=\> (
 
 **Tasks:**
 
-* \[ \] Set up Redux Toolkit store
+* \[x\] Set up Redux Toolkit store
 
-* \[ \] Create authSlice for user state
+* \[x\] Create authSlice for user state
 
-* \[ \] Create ridesSlice for ride data
+* \[x\] Create ridesSlice for ride data
 
-* \[ \] Create tripsSlice for trip data
+* \[x\] Create tripsSlice for trip data
 
-* \[ \] Implement Redux persist (save state on app close)
+* \[x\] Implement Redux persist (save state on app close)
 
-* \[ \] Connect Redux to authentication flow
+* \[x\] Connect Redux to authentication flow
+
+* \[x\] Enable Redux DevTools for debugging (development only, sanitize sensitive fields)
+
+* \[x\] Document migration strategy: keep AuthContext and Redux in parallel, mark AuthContext as legacy, plan full migration to Redux
+
+* \[x\] Confirm Redux Thunk middleware is enabled; document use of createAsyncThunk for future Firestore async actions
+
+* \[x\] Add error handling pattern: wrap Firebase calls in try/catch, set error/loading state, display alerts
 
 **Code Example: Auth Slice**  
 // store/slices/authSlice.js  
@@ -2919,7 +2939,7 @@ match /rides/{rideId} {
 
 **Official Tutorial:** React Native Getting Started
 
-* [https://reactnative.dev/docs/getting-started](https://reactnative.dev/docs/getting-started)
+* [https://reactnative.dev/docs/getting-started](https://reactnative.dev/docs/get-started)
 
 * [https://reactnative.dev/docs/tutorial](https://reactnative.dev/docs/tutorial)
 
@@ -3302,7 +3322,7 @@ return userDoc.exists() ? { id: [userDoc.id](http://userDoc.id), ...userDoc.data
 // Rides  
 export const getAllRides \= async () \=\> {  
 const snapshot \= await getDocs(collection(db, 'rides'));  
-return snapshot.docs.map(doc \=\> ({ id: [doc.id](http://doc.id), ...doc.data() }));  
+return snapshot.docs.map(doc \=\> ({ id: doc.id, ...doc.data() }));  
 };
 
 // ... more functions
@@ -3515,11 +3535,11 @@ minute: '2-digit',
 
 * \[ \] Age rating determined (17+ due to user-generated content)
 
-* \[ \] Data collection disclosed
+* \[ \] App metadata entered
 
-* \[ \] COPPA compliance (if under 13 allowed)
+* \[ \] Privacy nutrition label filled
 
-* \[ \] GDPR compliance basics (if EU users)
+* \[ \] In-app purchases declared (if any)
 
 **Marketing Materials**
 
@@ -3961,5 +3981,3 @@ Feel free to ask for clarification on any section of this guide. I can provide:
     - **Proper fix:** Should use a modal or stack route so that editing profile overlays or pushes on top of the profile screen, not replacing the tab. This will allow users to go back to their profile easily.
     - Track this as a technical debt item and update navigation once Expo Router supports better modal/stack flows for tab screens.
     - See: app/(tabs)/profile.js, Dec 2025
-
----

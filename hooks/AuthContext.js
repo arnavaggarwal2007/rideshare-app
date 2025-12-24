@@ -1,11 +1,11 @@
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { useDispatch } from 'react-redux';
 import { auth, db } from '../firebaseConfig';
+import { logout as reduxLogout, setUser as setReduxUser, setUserProfile as setReduxUserProfile } from '../store/slices/authSlice';
 
 const AuthContext = createContext(null);
-
-
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -13,6 +13,7 @@ export function AuthProvider({ children }) {
   const [profileComplete, setProfileComplete] = useState(false);
   const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(false);
+  const dispatch = useDispatch();
 
   const refreshProfile = useCallback(async (uid) => {
     setProfileLoading(true);
@@ -29,6 +30,7 @@ export function AuthProvider({ children }) {
       if (userDoc.exists()) {
         const userData = userDoc.data();
         setUserProfile(userData);
+        dispatch(setReduxUserProfile(userData));
         console.log('[AuthContext] refreshProfile userData:', userData);
         const isComplete =
           userData.profileComplete === true &&
@@ -41,6 +43,7 @@ export function AuthProvider({ children }) {
       } else {
         setProfileComplete(false);
         setUserProfile(null);
+        dispatch(setReduxUserProfile(null));
         console.log('[AuthContext] refreshProfile: userDoc does not exist, setProfileComplete false');
       }
     } catch (error) {
@@ -62,8 +65,14 @@ export function AuthProvider({ children }) {
         setUserProfile(null);
         setLoading(false);
         setProfileLoading(false);
+        dispatch(reduxLogout());
         return;
       }
+      dispatch(setReduxUser(currentUser));
+      // Reset stale profile immediately when user changes to avoid incorrect redirects
+      setUserProfile(null);
+      setProfileComplete(false);
+      dispatch(setReduxUserProfile(null));
       setProfileLoading(true);
       try {
         const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
@@ -72,6 +81,7 @@ export function AuthProvider({ children }) {
         if (userDoc.exists()) {
           const userData = userDoc.data();
           setUserProfile(userData);
+          dispatch(setReduxUserProfile(userData));
           console.log('[AuthContext] onAuthStateChanged userData:', userData);
           const isComplete =
             userData.profileComplete === true &&
@@ -84,6 +94,7 @@ export function AuthProvider({ children }) {
         } else {
           setProfileComplete(false);
           setUserProfile(null);
+          dispatch(setReduxUserProfile(null));
           console.log('[AuthContext] onAuthStateChanged: userDoc does not exist, setProfileComplete false');
         }
       } catch (error) {

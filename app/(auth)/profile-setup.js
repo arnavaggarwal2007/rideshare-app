@@ -1,6 +1,5 @@
 import { Lato_400Regular, Lato_700Bold } from '@expo-google-fonts/lato';
 import { Montserrat_400Regular, Montserrat_600SemiBold, Montserrat_700Bold, useFonts } from '@expo-google-fonts/montserrat';
-import { router } from 'expo-router';
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useState } from 'react';
 import {
@@ -16,11 +15,13 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import { useDispatch } from 'react-redux';
 import CustomDropdown from '../../components/CustomDropdown';
 import EmergencyContactInput from '../../components/EmergencyContactInput';
 import PreferenceToggle from '../../components/PreferenceToggle';
 import { auth, db } from '../../firebaseConfig';
 import { useAuth } from '../../hooks/AuthContext';
+import { setUserProfile } from '../../store/slices/authSlice';
 // import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 // import { Activity } from 'react';
 
@@ -47,6 +48,7 @@ const ProfileSetupScreen = () => {
 
     // Access refreshProfile from useAuth
     const { refreshProfile } = useAuth();
+    const dispatch = useDispatch();
     
     // Ride preferences
     const [ridePreferences, setRidePreferences] = useState({
@@ -193,13 +195,7 @@ const ProfileSetupScreen = () => {
             if (userDocSnap.exists() && userDocSnap.data().profileComplete) {
                 Alert.alert(
                     'Profile Already Exists',
-                    'You already have a completed profile. Redirecting to home.',
-                    [
-                        {
-                            text: 'OK',
-                            onPress: () => router.replace('/(tabs)/home'),
-                        }
-                    ]
+                    'You already have a completed profile. Redirecting to home.'
                 );
                 setLoading(false);
                 return;
@@ -226,17 +222,27 @@ const ProfileSetupScreen = () => {
             });
 
             // Refresh profile state so navigation guard sees profileComplete immediately
+            const updatedProfile = {
+                uid: user.uid,
+                email: user.email,
+                name: fullName.trim(),
+                school: school,
+                major: major,
+                graduationYear: gradYear,
+                bio: bio.trim() || '',
+                pronouns: pronouns != 'Prefer not to say' ? pronouns : '',
+                photoURL: photoURL,
+                emergencyContacts: emergencyContacts,
+                ridePreferences: ridePreferences,
+                profileComplete: true,
+                // createdAt and updatedAt are Firestore timestamps, not needed in Redux
+            };
+            dispatch(setUserProfile(updatedProfile));
             await refreshProfile(user.uid);
 
             Alert.alert(
                 'Profile Created! 🎉',
-                'Your profile has been set up successfully!',
-                [
-                    {
-                        text: 'OK',
-                        onPress: () => router.replace('/(tabs)/home'), // Adjust to home screen later when fully made
-                    }
-                ]
+                'Your profile has been set up successfully!'
             );
         } catch (error) {
             console.error('Error creating profile:', error);

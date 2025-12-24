@@ -6,6 +6,15 @@
 			"type": "shell",
 			"command": "npm test",
 			"group": "test"
+		},
+		{
+			"label": "expo start",
+			"type": "shell",
+			"command": "npx expo start",
+			"args": [],
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
 		}
 	]
 }
