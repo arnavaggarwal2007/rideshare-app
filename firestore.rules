@@ -49,6 +49,23 @@ service cloud.firestore {
       allow delete: if false;
     }
     
+    // Rides collection - drivers can manage their own rides
+    match /rides/{rideId} {
+      // Anyone authenticated can read rides (for browsing/search)
+      allow read: if isSignedIn();
+
+      // Only authenticated users can create rides, and must be the driver
+      allow create: if isSignedIn() && request.resource.data.driverId == request.auth.uid;
+
+      // Only the driver can update their own ride
+      allow update: if isSignedIn() && resource.data.driverId == request.auth.uid;
+
+      // Only the driver can delete their own ride
+      allow delete: if isSignedIn() && resource.data.driverId == request.auth.uid;
+
+      // TODO: Tighten rules for bookings, status transitions, and field validation in future sprints
+    }
+
     // Default: deny all other access
     match /{document=**} {
       allow read, write: if false;

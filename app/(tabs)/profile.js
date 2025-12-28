@@ -124,11 +124,17 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     backgroundColor: '#E0E3E7',
   },
+  name: {
+    fontSize: 20,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#1A1A1A',
+    marginBottom: 4,
+  },
   email: {
     fontSize: 14,
+    fontFamily: 'Lato_400Regular',
     color: '#3C4F5A',
     marginBottom: 8,
-    fontFamily: 'Lato_400Regular',
   },
   section: {
     marginBottom: 20,

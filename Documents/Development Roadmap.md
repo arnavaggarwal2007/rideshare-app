@@ -34,6 +34,18 @@
 * ✅ Documentation: Migration strategy (MIGRATION.md) and async thunk guide (THUNK_GUIDE.md) complete.
 * Deferred: Async thunk integration (Week 3+), full AuthContext migration (Week 3+), profile photo upload (future polish).
 
+**Week 3 Status (Updated 2025-12-27) - COMPLETE ✅**
+
+* ✅ **Maps & Geolocation**: React Native Maps (Expo Go compatible), OSM Nominatim geocoding, reverse geocoding, draggable markers with address lookup, current location integration with expo-location, route information display via OpenRouteService.
+* ✅ **Create Ride Screen**: Location autocomplete (LocationSearchInput component), date/time pickers (DateTimeInput component), seat/price/detour inputs, route preview via OpenRouteService, distance/duration calculation, Firestore save via Redux thunk, current location button.
+* ✅ **My Rides Screen**: Real-time ride list with onSnapshot listener, status badges (Active/Full/Completed), Edit and Delete buttons, FlatList display, pull-to-refresh, Redux state integration.
+* ✅ **Edit Ride Screen**: Pre-filled form loading, edit via updateRideThunk, Firestore updates.
+* ✅ **Redux Integration**: createRideThunk, updateRideThunk, deleteRideThunk, fetchMyRides with proper error handling and state management.
+* ✅ **Bug Fixes & Polish**: Driver name field consistency, photo URL field standardization, button alignment, error object rendering, undefined state variables, duplicate keys, missing dispatch imports. ~12 bugs fixed.
+* ✅ **Additional Features**: Current location button, clear location buttons, search keyword generation, route info display, time-based status computation, empty states, duplicate prevention.
+* **Note**: Implementation extended to ~60 hours due to additional features, polish, and bug fixes. All work completed within Week 3 window.
+* **Deferred to Week 4+**: Ride photo upload (P2), advanced search keyword indexing, analytics logging, push notifications for ride updates.
+
 **Table of Contents**
 
 1. [Feature Prioritization Matrix](#bookmark=id.g688xm2aphvl)
@@ -89,7 +101,7 @@
 
 | Feature | Priority | Estimated Hours | Dependencies |
 | :---- | :---- | :---- | :---- |
-| Create ride post with route (start/end) | P0 | 10h | Mapbox API, Firestore |
+| Create ride post with route (start/end) | P0 | 10h | React Native Maps (Expo Go) + OpenRouteService/OSM, Firestore |
 | Set departure date/time | P0 | 4h | Date picker |
 | Specify available seats (1-7) | P0 | 2h | \- |
 | Set price per seat | P0 | 3h | \- |
@@ -115,7 +127,7 @@
 | Filter by available seats | P2 | 2h | \- |
 | Map view of available rides | P1 | 10h | React Native Maps |
 | See ride details (driver info, route, price, seats) | P0 | 5h | \- |
-| Calculate route distance/duration | P1 | 6h | Mapbox Directions API |
+| Calculate route distance/duration | P1 | 6h | OpenRouteService Directions API (free OSM) |
 | See "rides passing through" your destination | P2 | 8h | Geospatial queries |
 
 **Total P0/P1: 45 hours**
@@ -185,100 +197,81 @@
 | :---- | :---- | :---- | :---- |
 | Add emergency contacts (up to 3\) | P0 | 5h | Firestore |
 | "Share Trip" button generates shareable link | P0 | 8h | Deep linking |
-| Share link includes driver info, route, ETA | P0 | 6h | \- |
-| Report user functionality | P0 | 6h | Firestore |
-| Block user functionality | P1 | 4h | Firestore |
-| Safety tips displayed during booking | P1 | 2h | \- |
-| Public meeting point suggestions | P2 | 5h | Mapbox POI data |
-| In-app emergency button (calls 911\) | P2 | 4h | React Native linking |
-
-**Total P0/P1: 31 hours**
-
-**Notifications System**
-
-| Feature | Priority | Estimated Hours | Dependencies |
-| :---- | :---- | :---- | :---- |
-| Push notification setup (iOS \+ Android) | P0 | 8h | Expo Notifications |
-| New ride request notification | P0 | 3h | \- |
-| Request accepted/declined notification | P0 | 3h | \- |
-| New message notification | P1 | 2h | \- |
-| Trip reminder notifications | P1 | 4h | Cloud Functions |
-| Rating reminder notification | P1 | 2h | \- |
-| Notification preferences/settings | P2 | 4h | Firestore |
-
-**Total P0/P1: 22 hours**
-
-**MVP Development Time Summary**
-
-**Total P0 (Must-Have) Features: \~145 hours**  
-**Total P1 (High Priority) Features: \~165 hours**
-
-**MVP Total: 310 hours (\~8 weeks at 40 hours/week)**
-
----
-
-**Database Schema Design**
-
-**Firebase Firestore Collections Structure**
-
-**1\. users Collection**
-
-users/{userId}  
-{  
-// Profile Information  
-"userId": "auto-generated-uid",  
-"email": "[student@university.edu](mailto:student@university.edu)",  
-"emailVerified": true,  
 "firstName": "John",  
 "lastName": "Doe",  
 "displayName": "John Doe",  
-"profilePhotoURL": "[https://storage.googleapis.com/](https://storage.googleapis.com/)...",
+* \[ \] Set up React Native Maps (static map preview component)
 
-// School Information  
+* \[ \] Create address autocomplete component (OSM fetch)
 "school": "Stanford University",  
-"major": "Computer Science",  
+* \[ \] Implement geocoding (address → coordinates)
 "graduationYear": 2026,  
-"studentStatus": "verified", // "pending", "verified", "rejected"
+* \[ \] Create location picker on map (marker)
 
-// Profile Details  
-"bio": "Love road trips\! Always up for good music and conversation.",  
-"phoneNumber": "+14155551234", // optional
-
-// Ratings & Reputation  
-"averageRating": 4.7,  
-"totalRatings": 23,  
-"totalRidesAsDriver": 15,  
-"totalRidesAsRider": 8,
-
-// Safety Features  
-"emergencyContacts": \[  
-{  
-"name": "Mom",  
-"phoneNumber": "+14155555678",  
-"relationship": "
-}  
-\],  
-"blockedUsers": \["userId1", "userId2"\], // array of blocked user IDs
-
-// Account Status  
-"isActive": true,  
-"accountCreatedAt": "2024-11-15T10:30:00Z",  
-"lastActiveAt": "2024-11-19T14:22:00Z",
-
-// Settings  
-"notificationPreferences": {  
-"rideRequests": true,  
-"messages": true,  
-"tripReminders": true,  
-"ratings": true  
-}  
+* \[ \] Test address search + map preview in Expo Go
+"bio": "Love road trips! Always up for good music and conversation.",  
+**Code Example: Address Autocomplete (OSM Nominatim)**  
+// services/maps/geocoding.js  
+export async function searchAddress(query) {  
+  if (!query) return [];  
+  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=us&q=${encodeURIComponent(query)}`;  
+  try {  
+    const res = await fetch(url, { headers: { 'User-Agent': 'rideshare-app/1.0' } });  
+    const data = await res.json();  
+    return data.map(item => ({  
+      address: item.display_name,  
+      coordinates: { latitude: parseFloat(item.lat), longitude: parseFloat(item.lon) },  
+      placeName: item.display_name,  
+    }));  
+  } catch (error) {  
+    console.error('Geocoding error:', error);  
+    return [];  
+  }  
 }
 
-**Indexes Needed:**
+**Resources:**
 
-* school (for school-specific searches)
+* React Native Maps (Expo): [https://docs.expo.dev/versions/latest/sdk/map-view/](https://docs.expo.dev/versions/latest/sdk/map-view/)
 
-* averageRating (for sorting)
+* OSM Nominatim usage policy: [https://operations.osmfoundation.org/policies/nominatim/](https://operations.osmfoundation.org/policies/nominatim/)
+"emailVerified": true,  
+* Composite: school \+ averageRating (for ranked lists)
+**Tasks:**
+
+* [ ] Set up React Native Maps (static map preview component)
+
+* [ ] Create address autocomplete component (OSM fetch)
+
+* [ ] Implement geocoding (address → coordinates)
+
+* [ ] Create location picker on map (marker)
+
+* [ ] Test address search + map preview in Expo Go
+
+**Code Example: Address Autocomplete (OSM Nominatim)**  
+// services/maps/geocoding.js  
+export async function searchAddress(query) {  
+  if (!query) return [];  
+  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=us&q=${encodeURIComponent(query)}`;  
+  try {  
+    const res = await fetch(url, { headers: { 'User-Agent': 'rideshare-app/1.0' } });  
+    const data = await res.json();  
+    return data.map(item => ({  
+      address: item.display_name,  
+      coordinates: { latitude: parseFloat(item.lat), longitude: parseFloat(item.lon) },  
+      placeName: item.display_name,  
+    }));  
+  } catch (error) {  
+    console.error('Geocoding error:', error);  
+    return [];  
+  }  
+}
+
+**Resources:**
+
+* React Native Maps (Expo): [https://docs.expo.dev/versions/latest/sdk/map-view/](https://docs.expo.dev/versions/latest/sdk/map-view/)
+
+* OSM Nominatim usage policy: [https://operations.osmfoundation.org/policies/nominatim/](https://operations.osmfoundation.org/policies/nominatim/)
 
 * Composite: school \+ averageRating (for ranked lists)
 
@@ -841,19 +834,15 @@ Backend-as-a-Service: Firebase
 
 Maps & Geolocation:
 
-* Mapbox Maps SDK (free student tier)
+* React Native Maps (Expo Go compatible; no paid Apple account needed)
 
-* Mapbox Directions API (route calculation)
+* OpenRouteService Directions API (free, OSM-based)
 
-* Mapbox Geocoding API (address autocomplete)
+* OSM Geocoding/Autocomplete (Nominatim/Photon)
 
 * Expo Location (device GPS)
 
-Alternative (if budget tight):
-
-* Google Maps Platform (also has free tier)
-
-* React Native Maps (works with both Mapbox and Google)
+Note: Mapbox Maps SDK requires a custom dev client and paid Apple Developer account to run on iOS. Avoided here to stay fully free and Expo Go compatible.
 
 **Development Tools**
 
@@ -916,10 +905,10 @@ rideshare-app/
 │ │ ├── auth.js \# Auth methods  
 │ │ ├── firestore.js \# Database operations  
 │ │ └── storage.js \# File upload/download  
-│ ├── mapbox/  
-│ │ ├── geocoding.js \# Address search  
-│ │ ├── directions.js \# Route calculation  
-│ │ └── maps.js \# Map utilities  
+│ ├── maps/  
+│ │ ├── geocoding.js \# Address search (OSM)  
+│ │ ├── directions.js \# Route calculation (ORS)  
+│ │ └── maps.js \# Map utilities (React Native Maps)  
 │ └── notifications/  
 │ └── pushNotifications.js \# Push notification setup  
 │  
@@ -980,7 +969,7 @@ rideshare-app/
 
    * \[ \] Firebase account: [https://firebase.google.com/](https://firebase.google.com/)
 
-   * \[ \] Mapbox account (student tier): [https://www.mapbox.com/](https://www.mapbox.com/)
+  * \[ \] OpenRouteService account (free tier): [https://openrouteservice.org/dev/#/signup](https://openrouteservice.org/dev/#/signup)
 
    * \[ \] Expo account: [https://expo.dev/](https://expo.dev/)
 
@@ -1085,53 +1074,40 @@ npm install react-native-vector-icons
 
 * \[ \] Create Firestore database
 
-* \[ \] Set up Firebase Storage
+* \[ \] Set up React Native Maps (static map preview component)
 
-* \[ \] Create services/firebase/config.js with your config
+* \[ \] Create address autocomplete component (OSM fetch)
 
-* \[ \] Initialize Firebase in your app
+* \[ \] Implement geocoding (address → coordinates)
 
-**Code Example: services/firebase/config.js**  
-import { initializeApp } from 'firebase/app';  
-import { getAuth } from 'firebase/auth';  
-import { getFirestore } from 'firebase/firestore';  
-import { getStorage } from 'firebase/storage';
+* \[ \] Create location picker on map (marker)
 
-const firebaseConfig \= {  
-apiKey: "YOUR\_API\_KEY",  
-authDomain: "[your-app.firebaseapp.com](http://your-app.firebaseapp.com)",  
-projectId: "your-project-id",  
-storageBucket: "[your-app.appspot.com](http://your-app.appspot.com)",  
-messagingSenderId: "123456789",  
-appId: "1:123456789:web:abcdef"  
-};
+* \[ \] Test address search + map preview in Expo Go
 
-const app \= initializeApp(firebaseConfig);
+**Code Example: Address Autocomplete (OSM Nominatim)**  
+// services/maps/geocoding.js  
+export async function searchAddress(query) {  
+  if (!query) return [];  
+  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=us&q=${encodeURIComponent(query)}`;  
+  try {  
+    const res = await fetch(url, { headers: { 'User-Agent': 'rideshare-app/1.0' } });  
+    const data = await res.json();  
+    return data.map(item => ({  
+      address: item.display_name,  
+      coordinates: { latitude: parseFloat(item.lat), longitude: parseFloat(item.lon) },  
+      placeName: item.display_name,  
+    }));  
+  } catch (error) {  
+    console.error('Geocoding error:', error);  
+    return [];  
+  }  
+}
 
-export const auth \= getAuth(app);  
-export const db \= getFirestore(app);  
-export const storage \= getStorage(app);
+**Resources:**
 
-**Day 5: Authentication Screens (8 hours)**
+* React Native Maps (Expo): [https://docs.expo.dev/versions/latest/sdk/map-view/](https://docs.expo.dev/versions/latest/sdk/map-view/)
 
-**Tasks:**
-
-* \[ \] Create Login screen with email/password inputs
-
-* \[ \] Create Signup screen with .edu email validation
-
-* \[ \] Create Forgot Password screen
-
-* \[ \] Implement form validation (email format, password strength)
-
-* \[ \] Add loading states and error messages
-
-* \[ \] Style authentication screens
-
-**Code Example: Email Validation**  
-// utils/validation.js  
-export const validateEduEmail \= (email) \=\> {  
-const eduEmailRegex \= /[\[1\]](#bookmark=id.8os9yv3r2biy)\+@\[a-zA-Z0-9.-\]+.edu$/;  
+* OSM Nominatim usage policy: [https://operations.osmfoundation.org/policies/nominatim/](https://operations.osmfoundation.org/policies/nominatim/)
 return eduEmailRegex.test(email);  
 };
 
@@ -1325,69 +1301,57 @@ export default authSlice.reducer;
 
 **Goal: Drivers can create and manage ride posts**
 
-**Day 1-2: Mapbox Setup & Address Autocomplete (16 hours)**
+**Day 1-2: Maps (Expo Go Compatible) & Address Autocomplete (16 hours)**
 
-**Get Mapbox Token:**
+**Goal:** Keep maps free and runnable in Expo Go (no paid Apple account, no custom dev client).
 
-1. Go to [https://account.mapbox.com/](https://account.mapbox.com/)
+**Install map library:**  
+expo install react-native-maps
 
-2. Create account (use student email for free tier)
+**APIs (all free tiers):**
 
-3. Copy your default public token
+* Map display: React Native Maps (included in Expo Go)
 
-4. Add to .env file
+* Geocoding/autocomplete: OpenStreetMap Nominatim/Photon (HTTP fetch; no native code)
 
-**Install Mapbox:**  
-npm install @rnmapbox/maps  
-npm install @mapbox/mapbox-sdk
+* Directions (used Day 3-4): OpenRouteService (ORS) free tier
 
 **Tasks:**
 
-* \[ \] Set up Mapbox in your app
+* \[ \] Set up React Native Maps (static map preview component)
 
-* \[ \] Create address autocomplete component
+* \[ \] Create address autocomplete component (OSM fetch)
 
 * \[ \] Implement geocoding (address → coordinates)
 
-* \[ \] Create location picker on map
+* \[ \] Create location picker on map (marker)
 
-* \[ \] Test address search functionality
+* \[ \] Test address search + map preview in Expo Go
 
-**Code Example: Address Autocomplete**  
-// services/mapbox/geocoding.js  
-import mbxGeocoding from '@mapbox/mapbox-sdk/services/geocoding';
-
-const MAPBOX\_TOKEN \= process.env.EXPO\_PUBLIC\_MAPBOX\_TOKEN;  
-const geocodingClient \= mbxGeocoding({ accessToken: MAPBOX\_TOKEN });
-
-export const searchAddress \= async (query) \=\> {  
-try {  
-const response \= await geocodingClient  
-.forwardGeocode({  
-query: query,  
-limit: 5,  
-countries: \['US'\], // restrict to US for .edu schools  
-})  
-.send();
-
-return response.body.features.map(feature \=\> ({  
-  address: feature.place\_name,  
-  coordinates: {  
-    latitude: feature.center\[1\],  
-    longitude: feature.center\[0\],  
-  },  
-  placeName: feature.text,  
-}));
-
-} catch (error) {  
-console.error('Geocoding error:', error);  
-return \[\];  
-}  
-};
+**Code Example: Address Autocomplete (OSM Nominatim)**  
+// services/maps/geocoding.js  
+export async function searchAddress(query) {  
+  if (!query) return [];  
+  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=us&q=${encodeURIComponent(query)}`;  
+  try {  
+    const res = await fetch(url, { headers: { 'User-Agent': 'rideshare-app/1.0' } });  
+    const data = await res.json();  
+    return data.map(item => ({  
+      address: item.display_name,  
+      coordinates: { latitude: parseFloat(item.lat), longitude: parseFloat(item.lon) },  
+      placeName: item.display_name,  
+    }));  
+  } catch (error) {  
+    console.error('Geocoding error:', error);  
+    return [];  
+  }  
+}
 
 **Resources:**
 
-* Mapbox Installation: [https://github.com/rnmapbox/maps/blob/main/docs/GettingStarted.md](https://github.com/rnmapbox/maps/blob/main/docs/GettingStarted.md)
+* React Native Maps (Expo): [https://docs.expo.dev/versions/latest/sdk/map-view/](https://docs.expo.dev/versions/latest/sdk/map-view/)
+
+* OSM Nominatim usage policy: [https://operations.osmfoundation.org/policies/nominatim/](https://operations.osmfoundation.org/policies/nominatim/)
 
 * Mapbox Geocoding API: [https://docs.mapbox.com/api/search/geocoding/](https://docs.mapbox.com/api/search/geocoding/)
 
@@ -1411,7 +1375,7 @@ return \[\];
 
 * \[ \] Add optional description text area
 
-* \[ \] Calculate route using Mapbox Directions API
+* \[ \] Calculate route using OpenRouteService Directions API (free tier)
 
 * \[ \] Display route on map preview
 
@@ -1419,37 +1383,43 @@ return \[\];
 
 * \[ \] Implement "Post Ride" button with Firestore save
 
-**Code Example: Calculate Route**  
-// services/mapbox/directions.js  
-import mbxDirections from '@mapbox/mapbox-sdk/services/directions';
-
-const directionsClient \= mbxDirections({ accessToken: MAPBOX\_TOKEN });
+**Code Example: Calculate Route (OpenRouteService)**  
+// services/maps/directions.js  
+const ORS_API_KEY \= process.env.EXPO\_PUBLIC\_ORS\_KEY;  
 
 export const calculateRoute \= async (startCoords, endCoords) \=\> {  
-try {  
-const response \= await directionsClient  
-.getDirections({  
-profile: 'driving',  
-waypoints: \[  
-{ coordinates: \[startCoords.longitude, startCoords.latitude\] },  
-{ coordinates: \[endCoords.longitude, endCoords.latitude\] }  
-\],  
-geometries: 'polyline',  
-})  
-.send();
+  const body \= {  
+    coordinates: [  
+      [startCoords.longitude, startCoords.latitude],  
+      [endCoords.longitude, endCoords.latitude],  
+    ],  
+    format: 'json',  
+    elevation: false,  
+  };  
 
-const route \= response.body.routes\[0\];
+  try {  
+    const res \= await fetch('https://api.openrouteservice.org/v2/directions/driving-car', {  
+      method: 'POST',  
+      headers: {  
+        'Content-Type': 'application/json',  
+        Authorization: ORS_API_KEY,  
+      },  
+      body: JSON.stringify(body),  
+    });  
 
-return {  
-  distanceKm: (route.distance / 1000).toFixed(1),  
-  durationMinutes: Math.round(route.duration / 60),  
-  polyline: route.geometry,  
-};
+    const data \= await res.json();  
+    const route \= data.features?.[0];  
+    if (!route) throw new Error('No route found');
 
-} catch (error) {  
-console.error('Directions error:', error);  
-throw error;  
-}  
+    const distanceKm \= (route.properties.summary.distance / 1000).toFixed(1);  
+    const durationMinutes \= Math.round(route.properties.summary.duration / 60);  
+    const polyline \= route.geometry; // GeoJSON LineString
+
+    return { distanceKm, durationMinutes, polyline };  
+  } catch (error) {  
+    console.error('Directions error:', error);  
+    throw error;  
+  }  
 };
 
 **Code Example: Save Ride to Firestore**  
