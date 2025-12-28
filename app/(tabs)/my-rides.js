@@ -107,6 +107,9 @@ export default function MyRidesScreen() {
 
   const loading = localLoading || reduxLoading;
   const error = reduxError;
+  const dedupedRides = Array.from(
+    new Map((myRides || []).filter(r => r && r.id).map(r => [r.id, r])).values()
+  );
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: '#F7F9FB' }}>
@@ -123,7 +126,7 @@ export default function MyRidesScreen() {
         ) : myRides.length === 0 ? (
           <View>
             <ThemedText style={styles.placeholder}>No rides to display yet.</ThemedText>
-            <View style={{ alignItems: 'center', marginTop: 16 }}>
+              <View style={{ alignItems: 'center', marginTop: 16 }}>
               <TouchableOpacity onPress={() => router.push('/ride/create')}>
                 <ThemedText style={styles.primaryBtn}>Create your first ride</ThemedText>
               </TouchableOpacity>
@@ -131,8 +134,8 @@ export default function MyRidesScreen() {
           </View>
         ) : (
           <FlatList
-            data={myRides.filter(r => r && r.id)}
-            keyExtractor={(item, index) => item.id || `ride-${index}`}
+            data={dedupedRides}
+            keyExtractor={(item) => item.id}
             renderItem={({ item }) => {
               const s = getDisplayStatus(item);
               const totalRevenue = (Number(item.totalSeats || 0) * Number(item.pricePerSeat || 0)).toFixed(2);
