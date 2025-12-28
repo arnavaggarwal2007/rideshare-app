@@ -1,14 +1,14 @@
-import React, { useEffect, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet, TouchableOpacity, Text, Alert, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, router } from 'expo-router';
-import { ThemedText } from '../../components/themed-text';
-import MapView, { Polyline, Marker } from 'react-native-maps';
-import { getRideById } from '../../services/firebase/firestore';
-import { deleteRideThunk } from '../../store/slices/ridesSlice';
-import { useSelector, useDispatch } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import MapView, { Marker, Polyline } from 'react-native-maps';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useDispatch, useSelector } from 'react-redux';
+import { ThemedText } from '../../components/themed-text';
+import { getRideById } from '../../services/firebase/firestore';
+import { deleteRideThunk } from '../../store/slices/ridesSlice';
 
 export default function RideDetailsScreen() {
   const dispatch = useDispatch();

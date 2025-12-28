@@ -1,20 +1,17 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Picker } from '@react-native-picker/picker';
-import { ThemedText } from '../../components/themed-text';
-import { useThemeColor } from '../../hooks/use-theme-color';
-import { useSelector, useDispatch } from 'react-redux';
-import { router } from 'expo-router';
-import { useLayoutEffect } from 'react';
-import { createRideThunk } from '../../store/slices/ridesSlice';
-import { getDirections } from '../../services/maps/directions';
-import MapView, { Marker, Polyline } from 'react-native-maps';
-import { searchAddress } from '../../services/maps/geocoding';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import LocationSearchInput from '../../components/LocationSearchInput';
+import { router } from 'expo-router';
+import React, { useState } from 'react';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import MapView, { Marker, Polyline } from 'react-native-maps';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useDispatch, useSelector } from 'react-redux';
 import DateTimeInput from '../../components/DateTimeInput';
+import LocationSearchInput from '../../components/LocationSearchInput';
+import { ThemedText } from '../../components/themed-text';
+import { useThemeColor } from '../../hooks/use-theme-color';
+import { getDirections } from '../../services/maps/directions';
+import { createRideThunk } from '../../store/slices/ridesSlice';
 
 export default function CreateRideScreen() {
   // Redux user/profile and dispatch

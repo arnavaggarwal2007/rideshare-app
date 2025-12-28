@@ -36,7 +36,7 @@ export async function searchRides(filters = {}) {
 	// For now, return empty array
 	return [];
 }
-import { getDoc } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query, updateDoc, where } from 'firebase/firestore';
 /**
  * Fetch a single ride by ID from Firestore
  * @param {string} rideId - The ride's document ID
@@ -49,7 +49,6 @@ export async function getRideById(rideId) {
 	if (!docSnap.exists()) return null;
 	return { id: docSnap.id, ...docSnap.data() };
 }
-import { deleteDoc } from 'firebase/firestore';
 /**
  * Delete a ride document from Firestore (hard delete)
  * @param {string} rideId - The ride's document ID
@@ -60,7 +59,6 @@ export async function deleteRide(rideId) {
 	const rideRef = doc(db, 'rides', rideId);
 	await deleteDoc(rideRef);
 }
-import { doc, updateDoc } from 'firebase/firestore';
 /**
  * Update a ride document in Firestore
  * @param {string} rideId - The ride's document ID
@@ -77,7 +75,6 @@ export async function updateRide(rideId, updates) {
 		updatedAt: serverTimestamp(),
 	});
 }
-import { query, where, onSnapshot, orderBy, getDocs } from 'firebase/firestore';
 /**
  * Fetch user's rides (one-time fetch, not subscription)
  * @param {string} userId - Driver's user ID
@@ -160,7 +157,7 @@ export const db = getFirestore(app);
 
 // ...ride CRUD functions will be added here
 
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 
 /**
  * Create a new ride document in Firestore

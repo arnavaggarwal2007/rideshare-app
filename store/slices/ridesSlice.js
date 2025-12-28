@@ -1,9 +1,9 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { 
-	getUserRides, 
-	createRide as createRideService, 
-	updateRide as updateRideService, 
-	deleteRide as deleteRideService 
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
+import {
+    createRide as createRideService,
+    deleteRide as deleteRideService,
+    getUserRides,
+    updateRide as updateRideService
 } from '../../services/firebase/firestore';
 
 // Async Thunks

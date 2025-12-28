@@ -1,7 +1,6 @@
-import React from 'react';
-import { View, TextInput, StyleSheet } from 'react-native';
-import { ThemedText } from './themed-text';
 import { Ionicons } from '@expo/vector-icons';
+import { StyleSheet, TextInput, View } from 'react-native';
+import { ThemedText } from './themed-text';
 
 /**
  * DateTimeInput - Reusable date and time input with auto-formatting

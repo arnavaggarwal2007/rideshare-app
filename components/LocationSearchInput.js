@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, ScrollView, StyleSheet } from 'react-native';
-import { ThemedText } from './themed-text';
 import { Ionicons } from '@expo/vector-icons';
-import { searchAddress } from '../services/maps/geocoding';
 import * as Haptics from 'expo-haptics';
+import React, { useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { searchAddress } from '../services/maps/geocoding';
+import { ThemedText } from './themed-text';
 
 /**
  * LocationSearchInput - Reusable location search component

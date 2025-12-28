@@ -1,19 +1,18 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, router } from 'expo-router';
-import { useDispatch } from 'react-redux';
-import { ThemedText } from '../../components/themed-text';
-import { getRideById } from '../../services/firebase/firestore';
-import { updateRideThunk } from '../../store/slices/ridesSlice';
-import { useThemeColor } from '../../hooks/use-theme-color';
-import { searchAddress } from '../../services/maps/geocoding';
-import { getDirections } from '../../services/maps/directions';
-import MapView, { Polyline, Marker } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import LocationSearchInput from '../../components/LocationSearchInput';
+import { router, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import MapView, { Marker, Polyline } from 'react-native-maps';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useDispatch } from 'react-redux';
 import DateTimeInput from '../../components/DateTimeInput';
+import LocationSearchInput from '../../components/LocationSearchInput';
+import { ThemedText } from '../../components/themed-text';
+import { useThemeColor } from '../../hooks/use-theme-color';
+import { getRideById } from '../../services/firebase/firestore';
+import { getDirections } from '../../services/maps/directions';
+import { updateRideThunk } from '../../store/slices/ridesSlice';
 
 export default function EditRideScreen() {
   const { id } = useLocalSearchParams();

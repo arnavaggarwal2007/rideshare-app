@@ -1,22 +1,21 @@
-import React, { useRef, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View, ScrollView, TextInput, ActivityIndicator, StatusBar, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import MapView, { Marker, Polyline } from 'react-native-maps';
-import { useDispatch, useSelector } from 'react-redux';
-import { router } from 'expo-router';
-import { signOut } from 'firebase/auth';
-import { auth } from '../../firebaseConfig';
-import { logout } from '../../store/slices/authSlice';
-import { searchAddress, reverseGeocode } from '../../services/maps/geocoding';
-import { calculateRegionFromCoordinates, formatCoordinates } from '../../services/maps/utils';
-import { getDirections } from '../../services/maps/directions';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Montserrat_700Bold } from '@expo-google-fonts/montserrat';
 import { Lato_400Regular } from '@expo-google-fonts/lato';
-import { useFonts } from 'expo-font';
+import { Montserrat_700Bold } from '@expo-google-fonts/montserrat';
 import { Ionicons } from '@expo/vector-icons';
+import { useFonts } from 'expo-font';
 import * as Haptics from 'expo-haptics';
 import * as Location from 'expo-location';
+import { router } from 'expo-router';
+import { signOut } from 'firebase/auth';
+import { useRef, useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import MapView, { Marker, Polyline } from 'react-native-maps';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useDispatch, useSelector } from 'react-redux';
+import { auth } from '../../firebaseConfig';
+import { getDirections } from '../../services/maps/directions';
+import { reverseGeocode, searchAddress } from '../../services/maps/geocoding';
+import { calculateRegionFromCoordinates } from '../../services/maps/utils';
+import { logout } from '../../store/slices/authSlice';
 
 export default function HomeScreen() {
   const user = useSelector(state => state.auth.user);

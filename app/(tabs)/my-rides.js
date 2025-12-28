@@ -1,12 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, ActivityIndicator, StyleSheet, Alert, TouchableOpacity, RefreshControl } from 'react-native';
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useSelector, useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
+import { ThemedText } from '../../components/themed-text';
 import { subscribeToUserRides } from '../../services/firebase/firestore';
 import { deleteRideThunk, setMyRides } from '../../store/slices/ridesSlice';
-import { router } from 'expo-router';
-import { ThemedText } from '../../components/themed-text';
-import { useThemeColor } from '../../hooks/use-theme-color';
 
 export default function MyRidesScreen() {
   const dispatch = useDispatch();
