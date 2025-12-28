@@ -22,6 +22,7 @@ function stateSanitizer(state) {
 }
 
 import authReducer from './slices/authSlice';
+import feedReducer from './slices/feedSlice';
 import ridesReducer from './slices/ridesSlice';
 import tripsReducer from './slices/tripsSlice';
 
@@ -33,6 +34,7 @@ const persistConfig = {
 
 const rootReducer = combineReducers({
 	auth: authReducer,
+	feed: feedReducer,
 	rides: ridesReducer,
 	trips: tripsReducer,
 });
