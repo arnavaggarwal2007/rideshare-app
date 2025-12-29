@@ -64,7 +64,17 @@ export default function RideDetailsScreen() {
 
   const handleRequestSeat = async () => {
     await Haptics.selectionAsync();
-    Alert.alert('Coming Soon', 'Seat request feature will be available in the next phase.');
+    Alert.alert(
+      'Request Seat',
+      'Seat requests will be available next phase. You can message the driver to coordinate in the meantime.',
+      [
+        { text: 'OK', style: 'cancel' },
+        {
+          text: 'Open Messages',
+          onPress: async () => { await Haptics.selectionAsync(); router.push('/(tabs)/messages'); },
+        },
+      ]
+    );
   };
 
   const getCity = (location) => {
@@ -109,7 +119,7 @@ export default function RideDetailsScreen() {
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: '#F7F9FB' }}>
       <ScrollView contentContainerStyle={styles.container}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back">
           <ThemedText style={styles.backButtonText}>← Back</ThemedText>
         </TouchableOpacity>
         {loading ? (
@@ -128,6 +138,20 @@ export default function RideDetailsScreen() {
                 <ThemedText style={styles.cityText}>{getCity(ride.endLocation)}</ThemedText>
               </View>
               <ThemedText style={styles.dateText}>{ride.departureDate} • {ride.departureTime}</ThemedText>
+              <View style={styles.headerPlacesRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="location-outline" size={14} color="#3C4F5A" />
+                  <ThemedText style={styles.placeText}>
+                    {ride?.startLocation?.placeName || ride?.startLocation?.address || 'Start location'}
+                  </ThemedText>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="flag-outline" size={14} color="#3C4F5A" />
+                  <ThemedText style={styles.placeText}>
+                    {ride?.endLocation?.placeName || ride?.endLocation?.address || 'Destination'}
+                  </ThemedText>
+                </View>
+              </View>
             </View>
 
             {/* Status Badge */}
@@ -145,8 +169,21 @@ export default function RideDetailsScreen() {
             {/* Map */}
             <View style={styles.mapContainer}>
               <MapView style={styles.map} region={mapRegion}>
-                {ride.startLocation && <Marker coordinate={ride.startLocation.coordinates} title={ride.startLocation.placeName || 'Start'} />}
-                {ride.endLocation && <Marker coordinate={ride.endLocation.coordinates} title={ride.endLocation.placeName || 'Destination'} pinColor="#D32F2F" />}
+                {ride.startLocation && (
+                  <Marker
+                    coordinate={ride.startLocation.coordinates}
+                    title={ride.startLocation.placeName || 'Start'}
+                    accessibilityLabel="Start location"
+                  />
+                )}
+                {ride.endLocation && (
+                  <Marker
+                    coordinate={ride.endLocation.coordinates}
+                    title={ride.endLocation.placeName || 'Destination'}
+                    pinColor="#D32F2F"
+                    accessibilityLabel="Destination"
+                  />
+                )}
                 {polyline.length > 0 && <Polyline coordinates={polyline} strokeColor="#2774AE" strokeWidth={4} />}
               </MapView>
             </View>
@@ -183,7 +220,15 @@ export default function RideDetailsScreen() {
               </View>
               <View style={styles.sectionRow}>
                 <ThemedText style={styles.sectionLabel}>NAME</ThemedText>
-                <ThemedText style={styles.sectionValue}>{ride.driverName || 'Driver'}</ThemedText>
+                <TouchableOpacity
+                  onPress={async () => { await Haptics.selectionAsync(); if (ride?.driverId) router.push({ pathname: '/user/[id]', params: { id: ride.driverId } }); }}
+                  accessibilityRole="link"
+                  accessibilityLabel="View driver profile"
+                >
+                  <ThemedText style={[styles.sectionValue, { color: '#2774AE' }]}>
+                    {ride.driverName || 'Driver'}
+                  </ThemedText>
+                </TouchableOpacity>
               </View>
               <View style={styles.sectionRow}>
                 <ThemedText style={styles.sectionLabel}>RATING</ThemedText>
@@ -202,15 +247,15 @@ export default function RideDetailsScreen() {
             {/* Action Buttons */}
             {isDriver ? (
               <View style={styles.bottomButtons}>
-                <TouchableOpacity style={styles.editBtn} onPress={async () => { await Haptics.selectionAsync(); router.push({ pathname: '/ride/edit', params: { id: ride.id } }); }}>
+                <TouchableOpacity style={styles.editBtn} onPress={async () => { await Haptics.selectionAsync(); router.push({ pathname: '/ride/edit', params: { id: ride.id } }); }} accessibilityRole="button" accessibilityLabel="Edit ride">
                   <Text style={styles.bottomBtnText}>Edit</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.deleteBtn} onPress={async () => { await Haptics.selectionAsync(); handleDelete(); }}>
+                <TouchableOpacity style={styles.deleteBtn} onPress={async () => { await Haptics.selectionAsync(); handleDelete(); }} accessibilityRole="button" accessibilityLabel="Delete ride">
                   <Text style={styles.bottomBtnText}>Delete</Text>
                 </TouchableOpacity>
               </View>
             ) : (
-              <TouchableOpacity style={styles.requestBtn} onPress={handleRequestSeat}>
+              <TouchableOpacity style={styles.requestBtn} onPress={handleRequestSeat} accessibilityRole="button" accessibilityLabel="Request a seat">
                 <Text style={styles.bottomBtnText}>Request Seat</Text>
               </TouchableOpacity>
             )}
@@ -236,6 +281,8 @@ const styles = StyleSheet.create({
   cityText: { color: '#1A1A1A', fontWeight: '700', fontSize: 16 },
   arrow: { color: '#2774AE', fontWeight: '700', fontSize: 18 },
   dateText: { color: '#687076', fontSize: 13, marginTop: 4 },
+  headerPlacesRow: { marginTop: 8, gap: 6 },
+  placeText: { color: '#3C4F5A', fontSize: 12 },
   badgeRow: { flexDirection: 'row', marginBottom: 12 },
   badge: { borderRadius: 999, borderWidth: 1, paddingVertical: 4, paddingHorizontal: 10 },
   badgeText: { color: '#2774AE', fontWeight: '600', fontSize: 12 },

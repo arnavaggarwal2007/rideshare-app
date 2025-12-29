@@ -77,19 +77,83 @@ export async function getActiveRidesPage({ limit: pageLimit = 20, startAfter: cu
 	constraints.push(limit(pageLimit));
 	
 	const q = query(ridesRef, ...constraints);
-	
+
 	try {
 		const snapshot = await getDocs(q);
 		const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 		const lastVisible = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1] : null;
-		
-		return {
-			items,
-			lastVisible,
-		};
+		return { items, lastVisible };
 	} catch (error) {
-		console.error('[getActiveRidesPage] Error:', error);
-		throw new Error(error?.message || 'Failed to fetch active rides');
+		// Graceful fallback for missing Firestore indexes
+		const isIndexError = typeof error?.message === 'string' && error.message.includes('requires an index');
+		if (!isIndexError) {
+			console.error('[getActiveRidesPage] Error:', error);
+			throw new Error(error?.message || 'Failed to fetch active rides');
+		}
+
+		console.warn('[getActiveRidesPage] Index missing, applying fallback query. Message:', error?.message);
+
+		// Fallback A: remove keyword filter, keep status + departureTimestamp
+		try {
+			const baseConstraints = [
+				where('status', '==', 'active'),
+				where('departureTimestamp', '>=', startDate || now),
+				orderBy('departureTimestamp', 'asc'),
+				limit(pageLimit),
+			];
+			const qBase = query(ridesRef, ...(cursor ? [...baseConstraints, startAfter(cursor)] : baseConstraints));
+			const snapshot = await getDocs(qBase);
+			let items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+			// Client-side filtering for keywords since DB filter was removed
+			const startWord = startKeyword?.trim()?.toLowerCase() || null;
+			const endWord = endKeyword?.trim()?.toLowerCase() || null;
+			if (startWord) {
+				items = items.filter(it => (it.startSearchKeywords || []).some(k => k.includes(startWord)));
+			}
+			if (endWord) {
+				items = items.filter(it => (it.endSearchKeywords || []).some(k => k.includes(endWord)));
+			}
+			const lastVisible = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1] : null;
+			return { items, lastVisible };
+		} catch (fallbackErrA) {
+			const isIndexErrorA = typeof fallbackErrA?.message === 'string' && fallbackErrA.message.includes('requires an index');
+			if (!isIndexErrorA) {
+				console.error('[getActiveRidesPage] Fallback A error:', fallbackErrA);
+				throw new Error(fallbackErrA?.message || 'Failed to fetch active rides');
+			}
+			console.warn('[getActiveRidesPage] Fallback A also needs index, applying Fallback B (status-only).');
+		}
+
+		// Fallback B: status-only query (no orderBy / date filter), then client-side filter by date + keywords
+		try {
+			const statusOnlyConstraints = [
+				where('status', '==', 'active'),
+				limit(pageLimit),
+			];
+			const qStatus = query(ridesRef, ...(cursor ? [...statusOnlyConstraints, startAfter(cursor)] : statusOnlyConstraints));
+			const snapshot = await getDocs(qStatus);
+			let items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+			// Client-side date filter
+			const effectiveStart = startDate || now;
+			items = items.filter(it => {
+				const ts = it.departureTimestamp?.toDate ? it.departureTimestamp.toDate() : new Date(it.departureTimestamp);
+				return ts >= effectiveStart;
+			});
+			// Client-side keywords filter
+			const startWord = startKeyword?.trim()?.toLowerCase() || null;
+			const endWord = endKeyword?.trim()?.toLowerCase() || null;
+			if (startWord) {
+				items = items.filter(it => (it.startSearchKeywords || []).some(k => k.includes(startWord)));
+			}
+			if (endWord) {
+				items = items.filter(it => (it.endSearchKeywords || []).some(k => k.includes(endWord)));
+			}
+			const lastVisible = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1] : null;
+			return { items, lastVisible };
+		} catch (fallbackErrB) {
+			console.error('[getActiveRidesPage] Fallback B error:', fallbackErrB);
+			throw new Error(fallbackErrB?.message || 'Failed to fetch active rides');
+		}
 	}
 }
 import { deleteDoc, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, startAfter, updateDoc, where } from 'firebase/firestore';
@@ -208,7 +272,28 @@ export const db = getFirestore(app);
  * @property {string[]} bookedRiders - User IDs of accepted riders
  * @property {string[]} pendingRequests - User IDs of pending requests
  * @property {string} school - School for filtering
- * @property {string[]} searchKeywords - Keywords for search
+ * @property {string[]} startSearchKeywords - Keywords from start location
+ * @property {string[]} endSearchKeywords - Keywords from end location
+ */
+
+/**
+ * RideRequest object schema (Firestore rideRequests collection)
+ *
+ * @typedef {Object} RideRequest
+ * @property {string} requestId - Auto-generated document ID
+ * @property {string} rideId - Reference to the ride document
+ * @property {string} riderId - User ID of the rider requesting seat
+ * @property {string} riderName - Rider's display name
+ * @property {string} riderPhotoURL - Rider's profile photo URL
+ * @property {number} riderRating - Rider's average rating
+ * @property {string} driverId - User ID of the driver (denormalized for queries)
+ * @property {string} driverName - Driver's display name (denormalized)
+ * @property {number} seatsRequested - Number of seats requested (default 1)
+ * @property {string} status - 'pending', 'accepted', 'declined', 'cancelled'
+ * @property {string|null} message - Optional message from rider to driver
+ * @property {Date|string} createdAt - Request creation timestamp
+ * @property {Date|string} updatedAt - Last update timestamp
+ * @property {Date|string|null} respondedAt - When driver accepted/declined
  */
 
 // ...ride CRUD functions will be added here
@@ -308,4 +393,99 @@ function generateSearchKeywords(rideData) {
 		startSearchKeywords: [...startKeywords],
 		endSearchKeywords: [...endKeywords],
 	};
+}
+
+// ========================================
+// RIDE REQUESTS (Week 5 - Seat Booking)
+// ========================================
+
+/**
+ * Create a ride request (rider requests a seat)
+ * @param {string} rideId - The ride's document ID
+ * @param {string} riderId - The rider's user ID
+ * @param {Object} riderProfile - Rider's profile { name, photoURL, averageRating }
+ * @param {Object} rideData - Partial ride data { driverId, driverName }
+ * @param {number} seatsRequested - Number of seats (default 1)
+ * @param {string|null} message - Optional message to driver
+ * @returns {Promise<string>} - The new request's document ID
+ */
+export async function createRideRequest(rideId, riderId, riderProfile, rideData, seatsRequested = 1, message = null) {
+	if (!rideId || !riderId || !rideData.driverId) {
+		throw new Error('rideId, riderId, and driverId are required');
+	}
+	
+	const requestsRef = collection(db, 'rideRequests');
+	const request = {
+		rideId,
+		riderId,
+		riderName: riderProfile.name || 'Rider',
+		riderPhotoURL: riderProfile.photoURL || '',
+		riderRating: riderProfile.averageRating || 0,
+		driverId: rideData.driverId,
+		driverName: rideData.driverName || 'Driver',
+		seatsRequested,
+		status: 'pending',
+		message: message || null,
+		createdAt: serverTimestamp(),
+		updatedAt: serverTimestamp(),
+		respondedAt: null,
+	};
+	
+	const docRef = await addDoc(requestsRef, request);
+	return docRef.id;
+}
+
+/**
+ * Get ride requests for a specific ride (driver view)
+ * @param {string} rideId - The ride's document ID
+ * @returns {Promise<Array>} - Array of request objects
+ */
+export async function getRideRequests(rideId) {
+	if (!rideId) throw new Error('rideId is required');
+	const requestsRef = collection(db, 'rideRequests');
+	const q = query(requestsRef, where('rideId', '==', rideId), orderBy('createdAt', 'desc'));
+	const snapshot = await getDocs(q);
+	return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
+/**
+ * Get all requests made by a rider (rider view)
+ * @param {string} riderId - The rider's user ID
+ * @returns {Promise<Array>} - Array of request objects
+ */
+export async function getRiderRequests(riderId) {
+	if (!riderId) throw new Error('riderId is required');
+	const requestsRef = collection(db, 'rideRequests');
+	const q = query(requestsRef, where('riderId', '==', riderId), orderBy('createdAt', 'desc'));
+	const snapshot = await getDocs(q);
+	return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
+/**
+ * Update ride request status (driver accepts/declines)
+ * @param {string} requestId - The request's document ID
+ * @param {string} status - 'accepted' or 'declined'
+ * @returns {Promise<void>}
+ */
+export async function updateRideRequestStatus(requestId, status) {
+	if (!requestId || !['accepted', 'declined'].includes(status)) {
+		throw new Error('requestId and valid status (accepted/declined) are required');
+	}
+	const requestRef = doc(db, 'rideRequests', requestId);
+	await updateDoc(requestRef, {
+		status,
+		respondedAt: serverTimestamp(),
+		updatedAt: serverTimestamp(),
+	});
+}
+
+/**
+ * Cancel a ride request (rider cancels before driver responds)
+ * @param {string} requestId - The request's document ID
+ * @returns {Promise<void>}
+ */
+export async function cancelRideRequest(requestId) {
+	if (!requestId) throw new Error('requestId is required');
+	const requestRef = doc(db, 'rideRequests', requestId);
+	await deleteDoc(requestRef);
 }

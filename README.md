@@ -48,3 +48,46 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+## Firestore Indexes
+
+This app uses Firestore composite indexes for feed search and sorting. If you see an error like "The query requires an index", create the index using the link provided in the error.
+
+Required indexes for the rides feed:
+- `status` (asc) + `departureTimestamp` (asc) — sorting upcoming active rides
+- `startSearchKeywords` (array-contains) + `status` (asc) + `departureTimestamp` (asc)
+- `endSearchKeywords` (array-contains) + `status` (asc) + `departureTimestamp` (asc)
+
+How to create:
+- Trigger a search or open the feed; when Firestore needs an index, Expo logs a link to the Firebase Console with the index prefilled. Click the link and create the index. It typically builds in 1–2 minutes.
+- Repeat for each query variant (start vs end keywords).
+
+Troubleshooting:
+- While an index is building, the app will gracefully fall back to a simpler query and filter on the client. Results may be limited until the index is ready.
+
+**Index Creation Checklist:**
+- [ ] Status + departureTimestamp index created and built
+- [ ] startSearchKeywords + status + departureTimestamp index created and built
+- [ ] endSearchKeywords + status + departureTimestamp index created and built
+
+## Firestore Security Rules
+
+After updating `firestore.rules`, deploy changes to Firebase:
+
+```bash
+firebase deploy --only firestore:rules
+```
+
+**Recent Changes (Week 4)**:
+- Users collection: Any authenticated user can now read all user profiles (for viewing driver info from ride details)
+- Rides collection: Authenticated users can read all rides; only drivers can edit/delete their own
+- RideRequests collection: Schema and rules added (Week 5 prerequisite)
+
+## Development Status
+
+**Week 4 (Ride Discovery & Search)**: ✅ COMPLETE (2025-12-29)
+- Feed with pagination, pull-to-refresh, infinite scroll
+- Search & filter (start/end keywords, date, price, seats)
+- Graceful Firestore index fallbacks
+- Ride Details with driver profile navigation
+- Documentation and accessibility enhancements

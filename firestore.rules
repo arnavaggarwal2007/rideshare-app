@@ -32,8 +32,9 @@ service cloud.firestore {
     
     // Users collection - users can read and write their own documents
     match /users/{userId} {
-      // Allow user to read their own profile
-      allow read: if isSignedIn() && isOwner(userId);
+      // Allow any authenticated user to read user profiles (for viewing driver profiles)
+      // Writes remain restricted to the owner
+      allow read: if isSignedIn();
       
       // Allow user to create their own profile (for signup flow)
       allow create: if isSignedIn() && isOwner(userId) && 
@@ -64,6 +65,29 @@ service cloud.firestore {
       allow delete: if isSignedIn() && resource.data.driverId == request.auth.uid;
 
       // TODO: Tighten rules for bookings, status transitions, and field validation in future sprints
+    }
+    
+    // RideRequests collection - seat booking requests
+    match /rideRequests/{requestId} {
+      // Riders can read their own requests; drivers can read requests for their rides
+      allow read: if isSignedIn() && 
+                     (request.auth.uid == resource.data.riderId || 
+                      request.auth.uid == resource.data.driverId);
+      
+      // Only authenticated riders can create requests
+      allow create: if isSignedIn() && 
+                       request.resource.data.riderId == request.auth.uid &&
+                       request.resource.data.status == 'pending';
+      
+      // Only the driver can update request status (accept/decline)
+      allow update: if isSignedIn() && 
+                       request.auth.uid == resource.data.driverId &&
+                       request.resource.data.keys().hasOnly(['status', 'updatedAt']);
+      
+      // Rider can delete their own pending request (cancel)
+      allow delete: if isSignedIn() && 
+                       request.auth.uid == resource.data.riderId &&
+                       resource.data.status == 'pending';
     }
 
     // Default: deny all other access

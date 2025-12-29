@@ -1541,25 +1541,25 @@ return unsubscribe; // Call this to stop listening
 
 **Goal: Riders can browse, search, and find rides**
 
-**Day 1-2: Ride Feed (16 hours)**
+**Day 1-2: Ride Feed (16 hours)** ✅ COMPLETE
 
 **Tasks:**
 
-* \[ \] Create Home screen with ride feed
+* ✅ Create Home screen with ride feed
 
-* \[ \] Fetch all active rides from Firestore
+* ✅ Fetch all active rides from Firestore
 
-* \[ \] Display rides in scrollable card list (FlatList)
+* ✅ Display rides in scrollable card list (FlatList)
 
-* \[ \] Show ride details: route, date, time, price, driver info
+* ✅ Show ride details: route, date, time, price, driver info
 
-* \[ \] Add "Pull to refresh" functionality
+* ✅ Add "Pull to refresh" functionality
 
-* \[ \] Implement pagination (load 20 rides at a time)
+* ✅ Implement pagination (load 20 rides at a time)
 
-* \[ \] Sort by departure date (soonest first)
+* ✅ Sort by departure date (soonest first)
 
-* \[ \] Handle empty state (no rides available)
+* ✅ Handle empty state (no rides available)
 
 **Code Example: Ride Card Component**  
 // components/ride/RideCard.js  
@@ -1713,25 +1713,25 @@ color: '\#666',
 
 * Pagination: [https://firebase.google.com/docs/firestore/query-data/query-cursors](https://firebase.google.com/docs/firestore/query-data/query-cursors)
 
-**Day 3-4: Search & Filter (16 hours)**
+**Day 3-4: Search & Filter (16 hours)** ✅ COMPLETE
 
 **Tasks:**
 
-* \[ \] Add search bar at top of Home screen
+* ✅ Add search bar at top of Home screen (dual: start + destination)
 
-* \[ \] Implement search by destination (query Firestore)
+* ✅ Implement search by destination (query Firestore with startSearchKeywords/endSearchKeywords)
 
-* \[ \] Add date range filter (date picker modal)
+* ✅ Add date range filter (date picker modal)
 
-* \[ \] Add price range filter (slider)
+* ✅ Add price range filter (slider)
 
-* \[ \] Add available seats filter
+* ✅ Add available seats filter
 
-* \[ \] Show filtered results in real-time
+* ✅ Show filtered results in real-time
 
-* \[ \] Add "Clear Filters" button
+* ✅ Add "Clear Filters" button
 
-* \[ \] Display filter count badge
+* ✅ Display filter count badge
 
 **Code Example: Search Rides**  
 // services/firebase/firestore.js  
@@ -1793,23 +1793,23 @@ throw error;
 
 * Array Contains: [https://firebase.google.com/docs/firestore/query-data/queries\#array\_membership](https://firebase.google.com/docs/firestore/query-data/queries#array_membership)
 
-**Day 5: Ride Details Screen (8 hours)**
+**Day 5: Ride Details Screen (8 hours)** ✅ COMPLETE
 
 **Tasks:**
 
-* \[ \] Create Ride Details screen (when user taps a ride card)
+* ✅ Create Ride Details screen (when user taps a ride card)
 
-* \[ \] Display full ride information
+* ✅ Display full ride information
 
-* \[ \] Show route on interactive map
+* ✅ Show route on interactive map
 
-* \[ \] Display driver profile (photo, name, rating, bio)
+* ✅ Display driver profile (photo, name, rating, bio)
 
-* \[ \] Show all ride details (date, time, price, seats, detour)
+* ✅ Show all ride details (date, time, price, seats, detour)
 
-* \[ \] Add "Request Seat" button (if user is not the driver)
+* ✅ Add "Request Seat" button (if user is not the driver) — stub with "Open Messages" option
 
-* \[ \] Navigate to driver's full profile on tap
+* ✅ Navigate to driver's full profile on tap — implemented with Firestore rules update
 
 **Code Example: Ride Details Screen**  
 // app/ride/\[id\].js  
