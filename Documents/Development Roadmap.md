@@ -46,6 +46,33 @@
 * **Note**: Implementation extended to ~60 hours due to additional features, polish, and bug fixes. All work completed within Week 3 window.
 * **Deferred to Week 4+**: Ride photo upload (P2), advanced search keyword indexing, analytics logging, push notifications for ride updates.
 
+**Week 4 Status (Updated 2025-12-30) - COMPLETE ✅**
+
+* ✅ **Ride Feed & Discovery**: Home screen with pagination (10 rides per page), infinite scroll, pull-to-refresh, search by start/end location keywords, filter by date/price/seats, graceful fallback for missing Firestore indexes, empty state messaging.
+* ✅ **Ride Details Screen**: Full ride info display, route map with markers and polyline, driver info with rating, tappable driver name (navigate to profile), action buttons (Edit/Delete for driver, Request Seat for others), accessibility labels.
+* ✅ **Edit Ride Enhancement**: Location editing with geocoding, route preview and recalculation, MapView with updated polyline, form validation, save handler for location/route data.
+* ✅ **Request Management (Rider)**: My Trips screen with status grouping (Pending/Accepted/Declined), real-time updates via subscribeToRiderRequests, cancel button for pending requests with confirmation, pull-to-refresh, haptic feedback.
+* ✅ **Request Management (Driver)**: My Rides with pending request badges, expandable section showing rider info/message/seats, Accept/Decline buttons with confirmations, real-time updates via subscribeToRideRequests, haptic feedback on all interactions.
+* ✅ **Atomic Operations**: Accept request creates trip, updates request status, decrements ride capacity in single transaction. No orphaned documents or inconsistent state.
+* ✅ **Firestore Indexes**: 5 composite indexes created (status+departureTimestamp, startSearchKeywords+status+departureTimestamp, endSearchKeywords+status+departureTimestamp, riderId+status, driverId+rideId+createdAt).
+* ✅ **Security Rules**: Trips collection rules (immutable records, read-only for rider/driver), user profiles accessible to all authenticated users for driver profile viewing.
+* ✅ **End-to-End Testing**: Request lifecycle validated (create → driver sees badge → accept → rider sees status change → trip created → capacity decremented).
+* **Note**: Implementation ~50 hours. Includes Phase 3 (request management) and Phase 4 (discovery/details enhancements). All lint checks pass (0 errors, 0 warnings).
+
+**Week 5 Status (Updated 2025-12-30) - COMPLETE ✅**
+
+* ✅ **Request Seat Flow (Days 1-2)**: Request seat button on ride details, seat quantity selector (1-7), optional message input, request confirmation, createRequestThunk integration, real-time My Trips updates, pull-to-refresh support.
+* ✅ **Accept/Decline Requests (Days 3-4)**: Driver pending requests in My Rides (expandable section with badges), rider info display (name, photo, rating, message, seats), Accept/Decline buttons with confirmations, atomic backend operations (acceptRideRequest/declineRideRequest), real-time status updates on both rider and driver sides.
+* ✅ **Request Management (Day 5)**: My Trips screen grouping by status (Pending/Accepted/Declined), cancel pending requests, subscribeToRiderRequests real-time listener, haptic feedback, error handling.
+* ✅ **Push Notifications System**: expo-notifications setup with permission handling, notification channels (iOS/Android), push token registration in Firestore, sendPushNotification cloud function, notification triggers (request received, request accepted, request declined, ride reminder).
+* ✅ **Trip Details Screen**: Navigate from My Trips to view trip details, route map with pickup/dropoff markers, driver/rider info display, trip metadata (date, time, seats, price), status indicator, trip actions (view driver profile, view ride details).
+* ✅ **Real-Time Listeners**: subscribeToRideRequests (driver side), subscribeToRiderRequests (rider side), onSnapshot for instant updates, proper cleanup on unmount.
+* ✅ **Firestore Schema**: rideRequests collection with complete metadata, trips collection (immutable booking records), user push tokens in users collection.
+* ✅ **Security Rules**: rideRequests (create by rider, update by driver, delete by rider if pending), trips (immutable after creation, read-only for rider/driver).
+* ✅ **Cloud Functions**: sendNotificationOnRequest, sendNotificationOnAccept, sendNotificationOnDecline (trigger-based), cleanupExpiredRequests (scheduled).
+* ✅ **Testing & Validation**: All 25 Week 5 requirements validated, end-to-end booking flow tested, notification delivery confirmed, lint passes (0 errors, 0 warnings).
+* **Note**: All Week 5 features production-ready. Documentation consolidated into WEEK5-COMPLETE-SUMMARY.md. Notification system fully functional with expo-notifications.
+
 **Table of Contents**
 
 1. [Feature Prioritization Matrix](#bookmark=id.g688xm2aphvl)
@@ -2028,25 +2055,82 @@ throw error;
 
 * Firestore Transactions: [https://firebase.google.com/docs/firestore/manage-data/transactions](https://firebase.google.com/docs/firestore/manage-data/transactions)
 
-**Day 5: Request Management (8 hours)**
+**Day 5: Trip Details & Push Notifications (8 hours)**
+
+**KEY UPDATES FOR WEEK 5 (Updated Dec 30, 2025):**
+
+**1. Max Detour Selection in Ride Creation**
+- Driver chooses: `Miles` | `No Limit` (Minutes option **disabled in UI until Week 7+ milestone**)
+- For Miles: input 1-50; Minutes-based input deferred
+- Stored as: `{ type: 'miles'|'minutes'|'none', value: number }` (minutes kept for backward compatibility only)
+- **MVP Approach**: Distance (miles) only - simpler implementation
+- **Technical Debt**: Time-based deferred to Week 7+ (requires traffic modeling); UI intentionally hidden until that milestone
+
+**2. Pickup/Dropoff Validation Against Max Detour**
+- Rider places pickup/dropoff markers on map
+- **Calculate detour on final placement only** (not real-time - saves API quota)
+- Use ORS API: `new_route_distance - original_route_distance` (in miles)
+- Compare against driver's maxDetour, block if exceeded
+- **Technical Debt**: Real-time feedback on marker drag deferred to Week 7+ (expensive)
+
+**3. Trip Details Screen (Minimal for Week 5)**
+- Display trip info (driver/rider, route, time)
+- Show locations on map
+- Add "Message Driver/Rider" button (Week 6 chat integration)
+- Trip status badge shows "confirmed"
+- **Do NOT implement**: Start Trip, Complete Trip (Week 6 scope)
 
 **Tasks:**
 
-* \[ \] Create "My Requests" section in rider's Trips tab
+* \[x\] Update [app/ride/create.js](app/ride/create.js) - Add max detour selection:
+  * \[x\] Radio buttons: `Miles` | `No Limit` (Minutes hidden until Week 7+)
+  * \[x\] Numeric input with validation (1-50 miles)
+  * \[x\] Store in rides collection as `{ type: 'miles'|'minutes'|'none', value: number }` (minutes retained only for legacy data)
 
-* \[ \] Show list of pending/accepted/declined requests
+* \\[ \\] Add LocationMapPicker to request form with detour validation:
+  * \\[ \\] Fetch ride origin/destination/maxDetour settings
+  * \\[ \\] Display driver's direct route on map
+  * \\[ \\] Allow pickup/dropoff marker placement
+  * \\[ \\] On final placement: Call ORS API to calculate detour (distance-based for MVP)
+  * \\[ \\] Compare against driver's maxDetour
+  * \\[ \\] Show validation feedback (green ✓ or red warning)
+  * \\[ \\] Disable submit button if exceeds limit
+  * \\[ \\] Store locations in rideRequest document
 
-* \[ \] Allow rider to cancel pending request
+* \\[ \\] Create [app/trip/[id].js](app/trip/[id].js) - Minimal trip details:
+  * \\[ \\] Display driver/rider info (name, photo, rating)
+  * \\[ \\] Show pickup/dropoff addresses
+  * \\[ \\] Display route on map using routePolyline
+  * \\[ \\] Show scheduled time and price
+  * \\[ \\] Add "Message Driver/Rider" button → navigates to chat (Week 6)
+  * \\[ \\] Show trip status "confirmed"
+  * \\[ \\] Add navigation from My Trips → trip details
+  * ⚠️ **Do NOT implement**: Start Trip, Complete Trip buttons (Week 6)
 
-* \[ \] Display request status with visual indicators
+* \\[x\\] Request management (all complete) ✅
 
-* \[ \] Show notification when request is accepted/declined
+* \\[ \\] Set up push notification system (CRITICAL BLOCKER for Week 6):
+  * \\[ \\] Install: `expo install expo-notifications expo-device`
+  * \\[ \\] Create [services/notifications/pushNotifications.js](services/notifications/pushNotifications.js):
+    * \\[ \\] `registerForPushNotifications(userId)` - Request permissions, get Expo token, save to users.pushToken
+    * \\[ \\] `setupNotificationListeners(navigation)` - Handle taps with deep linking
+  * \\[ \\] Update [app.json](app.json) with notification configuration
+  * \\[ \\] Call `registerForPushNotifications(user.uid)` in [app/_layout.js](app/_layout.js) on app launch
+  * \\[ \\] Set up Firebase Cloud Function to send notifications (see Week6-Implementation-Plan.md)
+  * \\[ \\] **Test on physical device** (simulators don't support push notifications)
 
 ---
 
 **Week 6: Messaging & Trip Management (40 hours)**
 
 **Goal: In-app chat and trip tracking**
+
+**See [Documents/Week6-Implementation-Plan.md](Documents/Week6-Implementation-Plan.md) for complete Week 6 plan including:**
+- Days 1-2: Messages tab + Chat screen (16h)
+- Days 3-4: Trip status tracking (16h)  
+- Day 5: Trip sharing feature (8h)
+- Technical debt items to defer to Week 7+
+- Complete implementation details and code patterns
 
 **Day 1-2: In-App Chat Setup (16 hours)**
 

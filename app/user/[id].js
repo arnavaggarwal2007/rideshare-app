@@ -26,7 +26,7 @@ export default function OtherUserProfileScreen() {
         } else {
           setProfile(null);
         }
-      } catch (e) {
+      } catch (_err) {
         setProfile(null);
       } finally {
         setLoading(false);
@@ -55,8 +55,8 @@ export default function OtherUserProfileScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F7F9FB' }}>
       <ScrollView contentContainerStyle={styles.container}>
         {/* Back Button */}
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>{'< Back'}</Text>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back">
+          <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
         {/* Profile Header */}
         <View style={styles.header}>
@@ -98,19 +98,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#F7F9FB',
     flexGrow: 1,
   },
-  backButton: {
-    alignSelf: 'flex-start',
-    marginBottom: 12,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: '#E0E3E7',
-    borderRadius: 6,
-  },
-  backButtonText: {
-    fontFamily: 'Montserrat_700Bold',
-    fontSize: 15,
-    color: '#2774AE',
-  },
+  backButton: { alignSelf: 'flex-start', paddingVertical: 8, paddingHorizontal: 0, marginBottom: 12 },
+  backButtonText: { fontFamily: 'Montserrat_700Bold', fontSize: 16, color: '#2774AE', fontWeight: '600' },
   centered: {
     flex: 1,
     justifyContent: 'center',

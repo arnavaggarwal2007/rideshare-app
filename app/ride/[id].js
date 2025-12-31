@@ -8,12 +8,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import { ThemedText } from '../../components/themed-text';
 import { getRideById } from '../../services/firebase/firestore';
+import { fetchMyRequestsThunk } from '../../store/slices/requestsSlice';
 import { deleteRideThunk } from '../../store/slices/ridesSlice';
 
 export default function RideDetailsScreen() {
   const dispatch = useDispatch();
   const { id } = useLocalSearchParams();
   const user = useSelector(state => state.auth.user);
+  const { myRequests } = useSelector(state => state.requests);
   const [ride, setRide] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -36,6 +38,12 @@ export default function RideDetailsScreen() {
     };
     if (id) fetchRide();
   }, [id]);
+
+  useEffect(() => {
+    if (user?.uid) {
+      dispatch(fetchMyRequestsThunk(user.uid));
+    }
+  }, [dispatch, user?.uid]);
 
   const handleDelete = () => {
     Alert.alert(
@@ -64,17 +72,17 @@ export default function RideDetailsScreen() {
 
   const handleRequestSeat = async () => {
     await Haptics.selectionAsync();
-    Alert.alert(
-      'Request Seat',
-      'Seat requests will be available next phase. You can message the driver to coordinate in the meantime.',
-      [
-        { text: 'OK', style: 'cancel' },
-        {
-          text: 'Open Messages',
-          onPress: async () => { await Haptics.selectionAsync(); router.push('/(tabs)/messages'); },
-        },
-      ]
-    );
+    if (!user?.uid) {
+      Alert.alert('Sign in required', 'Please sign in to request a seat.');
+      return;
+    }
+
+    if (hasPendingRequest) {
+      Alert.alert('Request already pending', 'You already have a pending request for this ride.');
+      return;
+    }
+
+    router.push({ pathname: '/ride/request', params: { rideId: id } });
   };
 
   const getCity = (location) => {
@@ -99,6 +107,15 @@ export default function RideDetailsScreen() {
   };
 
   const isDriver = ride?.driverId === user?.uid;
+  const hasPendingRequest = !isDriver && myRequests?.some((req) => req.rideId === id && req.status === 'pending');
+
+  const getDetourDisplay = (r) => {
+    if (!r) return '—';
+    const unit = r.maxDetourUnit || (r.maxDetourValue ? 'miles' : 'none');
+    const value = r.maxDetourValue ?? r.maxDetourMinutes ?? null;
+    if (unit === 'none' || value === null || value === undefined) return 'No limit';
+    return `${value} ${unit}`;
+  };
 
   const polyline = (() => {
     if (!ride?.routePolyline) return [];
@@ -208,7 +225,7 @@ export default function RideDetailsScreen() {
               </View>
               <View style={styles.sectionRow}>
                 <ThemedText style={styles.sectionLabel}>MAX DETOUR</ThemedText>
-                <ThemedText style={styles.sectionValue}>{Number(ride.maxDetourMinutes || 0)} min</ThemedText>
+                <ThemedText style={styles.sectionValue}>{getDetourDisplay(ride)}</ThemedText>
               </View>
             </View>
 
@@ -255,8 +272,14 @@ export default function RideDetailsScreen() {
                 </TouchableOpacity>
               </View>
             ) : (
-              <TouchableOpacity style={styles.requestBtn} onPress={handleRequestSeat} accessibilityRole="button" accessibilityLabel="Request a seat">
-                <Text style={styles.bottomBtnText}>Request Seat</Text>
+              <TouchableOpacity
+                style={[styles.requestBtn, hasPendingRequest && { backgroundColor: '#A0A9B0' }]}
+                onPress={handleRequestSeat}
+                accessibilityRole="button"
+                accessibilityLabel="Request a seat"
+                disabled={hasPendingRequest}
+              >
+                <Text style={styles.bottomBtnText}>{hasPendingRequest ? 'Request Pending' : 'Request Seat'}</Text>
               </TouchableOpacity>
             )}
           </>

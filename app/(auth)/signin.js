@@ -6,15 +6,15 @@ import { useRouter } from 'expo-router';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useState } from 'react';
 import {
-  ActivityIndicator,
-  Keyboard,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
+    ActivityIndicator,
+    Keyboard,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View,
 } from 'react-native';
 import { auth } from '../../firebaseConfig';
 
@@ -143,7 +143,7 @@ export default function SignInScreen() {
         </TouchableOpacity>
 
         <View style={styles.signUpSection}>
-          <Text style={styles.signUpText}>Don't have an account? </Text>
+          <Text style={styles.signUpText}>Don&apos;t have an account? </Text>
           <TouchableOpacity onPress={() => router.push('signup')} disabled={loading}>
             <Text style={styles.signUpLink}>Sign Up</Text>
           </TouchableOpacity>

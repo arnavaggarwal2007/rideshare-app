@@ -40,7 +40,7 @@ const ProfileSetupScreen = () => {
     const [gradYear, setGradYear] = useState('Select Year');
     const [bio, setBio] = useState('');
     const [pronouns, setPronouns] = useState('Prefer not to say');
-    const [profileImage, setProfileImage] = useState(null);
+    const [profileImage] = useState(null);
     const [loading, setLoading] = useState(false);
     
     // Emergency contacts (max 3)
@@ -212,7 +212,7 @@ const ProfileSetupScreen = () => {
                 major: major,
                 graduationYear: gradYear,
                 bio: bio.trim() || '',
-                pronouns: pronouns != 'Prefer not to say' ? pronouns : '',
+                pronouns: pronouns !== 'Prefer not to say' ? pronouns : '',
                 photoURL: photoURL,
                 emergencyContacts: emergencyContacts,
                 ridePreferences: ridePreferences,
@@ -230,7 +230,7 @@ const ProfileSetupScreen = () => {
                 major: major,
                 graduationYear: gradYear,
                 bio: bio.trim() || '',
-                pronouns: pronouns != 'Prefer not to say' ? pronouns : '',
+                pronouns: pronouns !== 'Prefer not to say' ? pronouns : '',
                 photoURL: photoURL,
                 emergencyContacts: emergencyContacts,
                 ridePreferences: ridePreferences,

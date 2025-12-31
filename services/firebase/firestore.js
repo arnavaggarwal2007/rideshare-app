@@ -157,6 +157,8 @@ export async function getActiveRidesPage({ limit: pageLimit = 20, startAfter: cu
 	}
 }
 import { deleteDoc, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, startAfter, updateDoc, where } from 'firebase/firestore';
+import { sendPushNotificationAsync } from '../notifications/pushNotifications';
+import { getUserPushTokens } from '../notifications/pushTokens';
 /**
  * Fetch a single ride by ID from Firestore
  * @param {string} rideId - The ride's document ID
@@ -237,6 +239,17 @@ import { getFirestore } from 'firebase/firestore';
 import { app } from './config';
 
 export const db = getFirestore(app);
+
+async function notifyUserPush(userId, message) {
+	if (!userId) return;
+	try {
+		const tokens = await getUserPushTokens(userId);
+		if (!tokens.length) return;
+		await sendPushNotificationAsync(tokens, message);
+	} catch (err) {
+		console.warn('[notifications] Failed to send push', err?.message || err);
+	}
+}
 
 /**
  * Ride object schema (Firestore rides collection)
@@ -322,6 +335,11 @@ export async function createRide(rideData, userId, userProfile) {
 		throw new Error('Price per seat is required');
 	}
 
+	const detourUnit = rideData.maxDetourUnit || (rideData.maxDetourMinutes ? 'minutes' : 'none');
+	const detourValue = detourUnit === 'none' ? null : (rideData.maxDetourValue ?? rideData.maxDetourMinutes ?? null);
+	const detourMinutes = detourUnit === 'minutes' ? (detourValue ?? 0) : (rideData.maxDetourMinutes ?? null);
+	const detourMiles = detourUnit === 'miles' ? (detourValue ?? rideData.maxDetourMiles ?? null) : (rideData.maxDetourMiles ?? null);
+
 	const ridesRef = collection(db, 'rides');
 	const ride = {
 		driverId: userId,
@@ -340,7 +358,10 @@ export async function createRide(rideData, userId, userProfile) {
 		availableSeats: rideData.totalSeats,
 		pricePerSeat: rideData.pricePerSeat,
 		currency: 'USD',
-		maxDetourMinutes: rideData.maxDetourMinutes || 0,
+		maxDetourUnit: detourUnit,
+		maxDetourValue: detourValue,
+		maxDetourMinutes: detourMinutes ?? 0,
+		maxDetourMiles: detourMiles,
 		description: rideData.description || '',
 		ridePhoto: rideData.ridePhoto || '',
 		allowsPets: rideData.allowsPets || false,
@@ -409,7 +430,7 @@ function generateSearchKeywords(rideData) {
  * @param {string|null} message - Optional message to driver
  * @returns {Promise<string>} - The new request's document ID
  */
-export async function createRideRequest(rideId, riderId, riderProfile, rideData, seatsRequested = 1, message = null) {
+export async function createRideRequest(rideId, riderId, riderProfile, rideData, seatsRequested = 1, message = null, pickupLocation = null, dropoffLocation = null) {
 	if (!rideId || !riderId || !rideData.driverId) {
 		throw new Error('rideId, riderId, and driverId are required');
 	}
@@ -423,6 +444,10 @@ export async function createRideRequest(rideId, riderId, riderProfile, rideData,
 		riderRating: riderProfile.averageRating || 0,
 		driverId: rideData.driverId,
 		driverName: rideData.driverName || 'Driver',
+		startLocation: rideData.startLocation || null,
+		endLocation: rideData.endLocation || null,
+		pickupLocation: pickupLocation || null,
+		dropoffLocation: dropoffLocation || null,
 		seatsRequested,
 		status: 'pending',
 		message: message || null,
@@ -432,6 +457,13 @@ export async function createRideRequest(rideId, riderId, riderProfile, rideData,
 	};
 	
 	const docRef = await addDoc(requestsRef, request);
+
+	await notifyUserPush(rideData.driverId, {
+		title: 'New seat request',
+		body: `${riderProfile.name || 'A rider'} requested ${seatsRequested} seat${seatsRequested > 1 ? 's' : ''}.`,
+		data: { rideId, requestId: docRef.id },
+	});
+
 	return docRef.id;
 }
 
@@ -458,7 +490,15 @@ export async function getRiderRequests(riderId) {
 	const requestsRef = collection(db, 'rideRequests');
 	const q = query(requestsRef, where('riderId', '==', riderId), orderBy('createdAt', 'desc'));
 	const snapshot = await getDocs(q);
-	return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+	return snapshot.docs.map(doc => {
+		const data = doc.data();
+		return {
+			id: doc.id,
+			...data,
+			startLocation: data.startLocation ? { ...data.startLocation } : null,
+			endLocation: data.endLocation ? { ...data.endLocation } : null,
+		};
+	});
 }
 
 /**
@@ -488,4 +528,215 @@ export async function cancelRideRequest(requestId) {
 	if (!requestId) throw new Error('requestId is required');
 	const requestRef = doc(db, 'rideRequests', requestId);
 	await deleteDoc(requestRef);
+}
+
+/**
+ * Create a trip document when a request is accepted
+ * @param {string} rideId - The ride's document ID
+ * @param {string} requestId - The request's document ID
+ * @param {Object} requestData - The request data
+ * @param {Object} rideData - The ride data
+ * @returns {Promise<string>} - The new trip's document ID
+ */
+export async function createTrip(rideId, requestId, requestData, rideData) {
+	if (!rideId || !requestId || !requestData || !rideData) {
+		throw new Error('rideId, requestId, requestData, and rideData are required');
+	}
+	
+	const tripsRef = collection(db, 'trips');
+	const trip = {
+		rideId,
+		requestId,
+		riderId: requestData.riderId,
+		riderName: requestData.riderName || 'Rider',
+		riderPhotoURL: requestData.riderPhotoURL || '',
+		riderRating: requestData.riderRating || 0,
+		driverId: rideData.driverId,
+		driverName: rideData.driverName || 'Driver',
+		driverPhotoURL: rideData.driverPhotoURL || '',
+		driverRating: rideData.driverRating || 0,
+		startLocation: rideData.startLocation || null,
+		endLocation: rideData.endLocation || null,
+		pickupLocation: requestData.pickupLocation || null,
+		dropoffLocation: requestData.dropoffLocation || null,
+		departureDate: rideData.departureDate || null,
+		departureTime: rideData.departureTime || null,
+		departureTimestamp: rideData.departureTimestamp || null,
+		routePolyline: rideData.routePolyline || null,
+		seatsBooked: requestData.seatsRequested || 1,
+		pricePerSeat: rideData.pricePerSeat || 0,
+		totalPrice: (rideData.pricePerSeat || 0) * (requestData.seatsRequested || 1),
+		status: 'confirmed',
+		createdAt: serverTimestamp(),
+		updatedAt: serverTimestamp(),
+	};
+	
+	const docRef = await addDoc(tripsRef, trip);
+	return docRef.id;
+}
+
+/**
+ * Get trip by ID
+ * @param {string} tripId - The trip's document ID
+ * @returns {Promise<Object>} - Trip object
+ */
+export async function getTripById(tripId) {
+	if (!tripId) throw new Error('tripId is required');
+	const tripRef = doc(db, 'trips', tripId);
+	const tripSnap = await getDoc(tripRef);
+	if (!tripSnap.exists()) return null;
+	return { id: tripSnap.id, ...tripSnap.data() };
+}
+
+/**
+ * Accept a ride request - atomically updates request status, creates trip, and decrements ride capacity
+ * @param {string} requestId - The request's document ID
+ * @param {string} rideId - The ride's document ID
+ * @returns {Promise<{tripId: string}>}
+ */
+export async function acceptRideRequest(requestId, rideId) {
+	if (!requestId || !rideId) {
+		throw new Error('requestId and rideId are required');
+	}
+	
+	// Fetch request and ride data
+	const requestRef = doc(db, 'rideRequests', requestId);
+	const rideRef = doc(db, 'rides', rideId);
+	
+	const [requestSnap, rideSnap] = await Promise.all([
+		getDoc(requestRef),
+		getDoc(rideRef)
+	]);
+	
+	if (!requestSnap.exists()) throw new Error('Request not found');
+	if (!rideSnap.exists()) throw new Error('Ride not found');
+	
+	const requestData = requestSnap.data();
+	const rideData = rideSnap.data();
+	
+	// Validate request is still pending
+	if (requestData.status !== 'pending') {
+		throw new Error('Request is not pending');
+	}
+	
+	// Validate ride has enough capacity
+	const availableSeats = rideData.availableSeats || 0;
+	const seatsRequested = requestData.seatsRequested || 1;
+	
+	if (availableSeats < seatsRequested) {
+		throw new Error('Not enough available seats');
+	}
+	
+	// Create trip document
+	const tripId = await createTrip(rideId, requestId, requestData, rideData);
+	
+	// Update request status to accepted
+	await updateDoc(requestRef, {
+		status: 'accepted',
+		respondedAt: serverTimestamp(),
+		updatedAt: serverTimestamp(),
+		tripId,
+	});
+	
+	// Decrement ride available seats
+	await updateDoc(rideRef, {
+		availableSeats: availableSeats - seatsRequested,
+		updatedAt: serverTimestamp(),
+	});
+
+	await notifyUserPush(requestData.riderId, {
+		title: 'Request accepted',
+		body: `${rideData.driverName || 'Your driver'} accepted your request.`,
+		data: { rideId, requestId, tripId },
+	});
+	
+	return { tripId };
+}
+
+/**
+ * Decline a ride request - updates request status only
+ * @param {string} requestId - The request's document ID
+ * @returns {Promise<void>}
+ */
+export async function declineRideRequest(requestId) {
+	if (!requestId) throw new Error('requestId is required');
+	
+	const requestRef = doc(db, 'rideRequests', requestId);
+	const requestSnap = await getDoc(requestRef);
+	
+	if (!requestSnap.exists()) throw new Error('Request not found');
+	
+	const requestData = requestSnap.data();
+	
+	// Validate request is still pending
+	if (requestData.status !== 'pending') {
+		throw new Error('Request is not pending');
+	}
+	
+	// Update request status to declined
+	await updateDoc(requestRef, {
+		status: 'declined',
+		respondedAt: serverTimestamp(),
+		updatedAt: serverTimestamp(),
+	});
+
+	await notifyUserPush(requestData.riderId, {
+		title: 'Request declined',
+		body: `${requestData.driverName || 'Driver'} declined your request.`,
+		data: { rideId: requestData.rideId, requestId },
+	});
+}
+
+/**
+ * Subscribe to ride requests for real-time updates (driver view)
+ * @param {string} rideId - The ride's document ID
+ * @param {string} driverId - The driver's user ID
+ * @param {Function} callback - Function called with updated requests array
+ * @returns {Function} - Unsubscribe function
+ */
+export function subscribeToRideRequests(rideId, driverId, callback) {
+	if (!rideId || !driverId) throw new Error('rideId and driverId are required');
+	
+	const requestsRef = collection(db, 'rideRequests');
+	const q = query(
+		requestsRef, 
+		where('rideId', '==', rideId),
+		where('driverId', '==', driverId),
+		orderBy('createdAt', 'desc')
+	);
+	
+	return onSnapshot(q, (snapshot) => {
+		const requests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+		callback(requests);
+	});
+}
+
+/**
+ * Subscribe to real-time updates for a rider's requests
+ * @param {string} riderId - The rider's user ID
+ * @param {Function} callback - Callback function called with updated requests array
+ * @returns {Function} - Unsubscribe function
+ */
+export function subscribeToRiderRequests(riderId, callback) {
+	if (!riderId) throw new Error('riderId is required');
+	
+	const requestsRef = collection(db, 'rideRequests');
+	const q = query(
+		requestsRef,
+		where('riderId', '==', riderId),
+		orderBy('createdAt', 'desc')
+	);
+	
+	return onSnapshot(q, (snapshot) => {
+		const requests = snapshot.docs.map(doc => {
+			const data = doc.data();
+			return {
+				id: doc.id,
+				...data,
+				startLocation: data.startLocation ? { ...data.startLocation } : null,
+				endLocation: data.endLocation ? { ...data.endLocation } : null,
+			};
+		});
+		callback(requests);
+	});
 }

@@ -19,6 +19,7 @@ export default function CreateRideScreen() {
   const user = useSelector(state => state.auth.user);
   const userProfile = useSelector(state => state.auth.userProfile || {});
   const mapRef = React.useRef(null);
+  const placeholderColor = useThemeColor({}, 'icon');
   // Submission state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
@@ -44,7 +45,8 @@ export default function CreateRideScreen() {
   const [departureTime, setDepartureTime] = useState('');
   const [totalSeats, setTotalSeats] = useState('1');
   const [pricePerSeat, setPricePerSeat] = useState('');
-  const [maxDetourMinutes, setMaxDetourMinutes] = useState('0');
+  const [maxDetourUnit, setMaxDetourUnit] = useState('none'); // 'miles', 'minutes', 'none'
+  const [maxDetourValue, setMaxDetourValue] = useState('');
   const [description, setDescription] = useState('');
 
   // Form validation
@@ -74,6 +76,12 @@ export default function CreateRideScreen() {
     if (!totalSeats || isNaN(Number(totalSeats)) || Number(totalSeats) < 1) return 'Enter a valid number of seats.';
     if (!pricePerSeat || isNaN(Number(pricePerSeat)) || Number(pricePerSeat) < 0) return 'Enter a valid price per seat.';
     if (!routePolyline.length || !routeInfo) return 'Preview the route before posting.';
+    // Validate max detour if selected
+    if (maxDetourUnit !== 'none') {
+      if (!maxDetourValue || isNaN(Number(maxDetourValue))) return 'Enter a valid detour value.';
+      const val = Number(maxDetourValue);
+      if (val < 0 || val > 100) return 'Max detour must be 0-100 miles.';
+    }
     return null;
   };
 
@@ -88,6 +96,10 @@ export default function CreateRideScreen() {
     }
     setIsSubmitting(true);
     try {
+      const detourUnit = maxDetourUnit || 'none';
+      const detourValue = detourUnit === 'none' ? null : Number(maxDetourValue);
+      const detourMinutes = null; // minutes deferred
+      const detourMiles = detourUnit === 'miles' ? detourValue : null;
       const rideData = {
         startLocation,
         endLocation,
@@ -98,7 +110,10 @@ export default function CreateRideScreen() {
         departureTime,
         totalSeats: Number(totalSeats),
         pricePerSeat: Number(pricePerSeat),
-        maxDetourMinutes: Number(maxDetourMinutes),
+        maxDetourUnit: detourUnit,
+        maxDetourValue: detourValue,
+        maxDetourMinutes: detourMinutes,
+        maxDetourMiles: detourMiles,
         description,
       };
       await dispatch(createRideThunk({ rideData, userId: user?.uid, userProfile })).unwrap();
@@ -226,7 +241,7 @@ export default function CreateRideScreen() {
         onLocationSelect={setStartLocation}
         iconColor="#2774AE"
         required
-        placeholderColor={useThemeColor({}, 'icon')}
+        placeholderColor={placeholderColor}
       />
 
       {/* End Location */}
@@ -237,7 +252,7 @@ export default function CreateRideScreen() {
         onLocationSelect={setEndLocation}
         iconColor="#D32F2F"
         required
-        placeholderColor={useThemeColor({}, 'icon')}
+        placeholderColor={placeholderColor}
       />
 
       {/* Departure Date */}
@@ -247,7 +262,7 @@ export default function CreateRideScreen() {
         value={departureDate}
         onChange={setDepartureDate}
         required
-        placeholderColor={useThemeColor({}, 'icon')}
+        placeholderColor={placeholderColor}
       />
 
       {/* Departure Time */}
@@ -257,7 +272,7 @@ export default function CreateRideScreen() {
         value={departureTime}
         onChange={setDepartureTime}
         required
-        placeholderColor={useThemeColor({}, 'icon')}
+        placeholderColor={placeholderColor}
       />
 
       {/* Total Seats */}
@@ -271,7 +286,7 @@ export default function CreateRideScreen() {
         value={totalSeats}
         onChangeText={setTotalSeats}
         keyboardType="numeric"
-        placeholderTextColor={useThemeColor({}, 'icon')}
+        placeholderTextColor={placeholderColor}
       />
 
       {/* Price Per Seat */}
@@ -286,27 +301,52 @@ export default function CreateRideScreen() {
           value={pricePerSeat}
           onChangeText={setPricePerSeat}
           keyboardType="decimal-pad"
-          placeholderTextColor={useThemeColor({}, 'icon')}
+          placeholderTextColor={placeholderColor}
         />
         <View style={styles.addon}><Text style={styles.addonText}>USD</Text></View>
       </View>
 
-      {/* Max Detour Minutes */}
+      {/* Max Detour Selection */}
       <View style={styles.labelRow}>
-        <View style={styles.labelIconRow}><Ionicons name="navigate-outline" size={16} color="#2774AE" style={{ marginRight: 6 }} /><ThemedText type="defaultSemiBold" style={styles.label}>Max Detour</ThemedText></View>
+        <View style={styles.labelIconRow}><Ionicons name="navigate-outline" size={16} color="#2774AE" style={{ marginRight: 6 }} /><ThemedText type="defaultSemiBold" style={styles.label}>Max Detour Allowance</ThemedText></View>
         <ThemedText style={styles.optionalLabel}>(Optional)</ThemedText>
       </View>
-      <View style={styles.inputGroup}>
-        <TextInput
-          style={[styles.input, { flex: 1 }]}
-          placeholder="0-120"
-          value={maxDetourMinutes}
-          onChangeText={setMaxDetourMinutes}
-          keyboardType="number-pad"
-          placeholderTextColor={useThemeColor({}, 'icon')}
-        />
-        <View style={styles.addon}><Text style={styles.addonText}>min</Text></View>
+      <View style={styles.detourOptionsContainer}>
+        {/* No Limit Option */}
+        <TouchableOpacity
+          style={[styles.detourOption, maxDetourUnit === 'none' && styles.detourOptionSelected]}
+          onPress={() => { setMaxDetourUnit('none'); setMaxDetourValue(''); }}
+        >
+          <View style={[styles.radioButton, maxDetourUnit === 'none' && styles.radioButtonSelected]} />
+          <ThemedText style={styles.detourOptionText}>No Limit</ThemedText>
+        </TouchableOpacity>
+
+        {/* Miles Option */}
+        <TouchableOpacity
+          style={[styles.detourOption, maxDetourUnit === 'miles' && styles.detourOptionSelected]}
+          onPress={() => setMaxDetourUnit('miles')}
+        >
+          <View style={[styles.radioButton, maxDetourUnit === 'miles' && styles.radioButtonSelected]} />
+          <ThemedText style={styles.detourOptionText}>Max Miles</ThemedText>
+        </TouchableOpacity>
       </View>
+
+      {/* Conditional Input for Miles or Minutes */}
+      {maxDetourUnit === 'miles' && (
+        <View style={styles.inputGroup}>
+          <TextInput
+            style={[styles.input, { flex: 1 }]}
+            placeholder={'0-100'}
+            value={maxDetourValue}
+            onChangeText={setMaxDetourValue}
+            keyboardType="number-pad"
+            placeholderTextColor={placeholderColor}
+          />
+          <View style={styles.addon}>
+            <Text style={styles.addonText}>mi</Text>
+          </View>
+        </View>
+      )}
 
       {/* Description */}
       <View style={styles.labelRow}>
@@ -319,7 +359,7 @@ export default function CreateRideScreen() {
         value={description}
         onChangeText={setDescription}
         multiline
-        placeholderTextColor={useThemeColor({}, 'icon')}
+        placeholderTextColor={placeholderColor}
       />
 
       {/* Submit & Clear Buttons */}
@@ -339,7 +379,7 @@ export default function CreateRideScreen() {
           setStartLocation(null);
           setEndLocation(null);
           setDepartureDate(''); setDepartureTime(''); setTotalSeats('1');
-          setPricePerSeat(''); setMaxDetourMinutes('0'); setDescription('');
+          setPricePerSeat(''); setMaxDetourUnit('none'); setMaxDetourValue(''); setDescription('');
           setRoutePolyline([]); setRouteInfo(null);
         }}>
           <Text style={styles.clearButtonText}>Clear</Text>
@@ -577,5 +617,48 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginTop: 12,
     alignItems: 'center',
+  },
+  detourOptionsContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  detourOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    minHeight: 44,
+  },
+  detourOptionSelected: {
+    backgroundColor: '#E8F4FD',
+    borderWidth: 2,
+    borderColor: '#2774AE',
+  },
+  radioButton: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: '#B0B0B0',
+    marginRight: 6,
+  },
+  radioButtonSelected: {
+    borderColor: '#2774AE',
+    backgroundColor: '#2774AE',
+  },
+  detourOptionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    textAlign: 'center',
+    flexShrink: 1,
   },
 });

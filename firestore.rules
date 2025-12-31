@@ -79,15 +79,36 @@ service cloud.firestore {
                        request.resource.data.riderId == request.auth.uid &&
                        request.resource.data.status == 'pending';
       
-      // Only the driver can update request status (accept/decline)
+      // Only the driver can update request status (accept/decline) and add tripId
       allow update: if isSignedIn() && 
-                       request.auth.uid == resource.data.driverId &&
-                       request.resource.data.keys().hasOnly(['status', 'updatedAt']);
+                       request.auth.uid == resource.data.driverId;
       
       // Rider can delete their own pending request (cancel)
       allow delete: if isSignedIn() && 
                        request.auth.uid == resource.data.riderId &&
                        resource.data.status == 'pending';
+    }
+    
+    // Trips collection - confirmed bookings created when requests are accepted
+    match /trips/{tripId} {
+      // Only rider and driver can read the trip
+      allow read: if isSignedIn() && 
+                     (request.auth.uid == resource.data.riderId || 
+                      request.auth.uid == resource.data.driverId);
+      
+      // Trip creation is allowed by backend (driver accepting request)
+      allow create: if isSignedIn();
+      
+      // Trips cannot be updated or deleted by users (immutable records)
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // Push tokens collection - users manage their own device tokens
+    match /pushTokens/{userId} {
+      allow read: if isSignedIn() && isOwner(userId);
+      allow create, update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
     }
 
     // Default: deny all other access

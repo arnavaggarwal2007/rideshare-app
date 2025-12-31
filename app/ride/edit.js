@@ -30,7 +30,7 @@ export default function EditRideScreen() {
   const [departureTime, setDepartureTime] = useState('');
   const [totalSeats, setTotalSeats] = useState('');
   const [pricePerSeat, setPricePerSeat] = useState('');
-  const [maxDetourMinutes, setMaxDetourMinutes] = useState('');
+  const [maxDetourMiles, setMaxDetourMiles] = useState('');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -55,7 +55,7 @@ export default function EditRideScreen() {
           setDepartureTime(r.departureTime || '');
           setTotalSeats(String(r.totalSeats ?? ''));
           setPricePerSeat(String(r.pricePerSeat ?? ''));
-          setMaxDetourMinutes(String(r.maxDetourMinutes ?? ''));
+          setMaxDetourMiles(String(r.maxDetourUnit === 'miles' ? (r.maxDetourValue ?? r.maxDetourMiles ?? '') : ''));
           setDescription(r.description || '');
           // Load existing route
           if (r.routePolyline) {
@@ -132,8 +132,22 @@ export default function EditRideScreen() {
     if (!departureTime || !isValidTime(departureTime)) { setError('Invalid time. Use HH:mm.'); return; }
     if (!totalSeats || isNaN(Number(totalSeats)) || Number(totalSeats) < 1) { setError('Enter a valid number of seats.'); return; }
     if (!pricePerSeat || isNaN(Number(pricePerSeat)) || Number(pricePerSeat) < 0) { setError('Enter a valid price per seat.'); return; }
+    if (maxDetourMiles && (isNaN(Number(maxDetourMiles)) || Number(maxDetourMiles) < 0 || Number(maxDetourMiles) > 100)) {
+      setError('Max detour must be 0-100 miles.');
+      return;
+    }
     setIsSubmitting(true);
     try {
+      const detourMilesNum = maxDetourMiles ? Number(maxDetourMiles) : null;
+      const detourUnit = detourMilesNum !== null && !isNaN(detourMilesNum)
+        ? 'miles'
+        : (ride?.maxDetourUnit === 'minutes' ? 'minutes' : 'none');
+      const detourValue = detourUnit === 'miles'
+        ? detourMilesNum
+        : detourUnit === 'minutes'
+          ? ride?.maxDetourMinutes ?? null
+          : null;
+
       const updates = {
         startLocation,
         endLocation,
@@ -143,7 +157,10 @@ export default function EditRideScreen() {
         totalSeats: Number(totalSeats),
         availableSeats: Number(totalSeats), // Reset available seats when total changes
         pricePerSeat: Number(pricePerSeat),
-        maxDetourMinutes: Number(maxDetourMinutes) || 0,
+        maxDetourUnit: detourUnit,
+        maxDetourValue: detourValue,
+        maxDetourMinutes: detourUnit === 'minutes' ? (ride?.maxDetourMinutes ?? 0) : null,
+        maxDetourMiles: detourUnit === 'miles' ? detourMilesNum : (ride?.maxDetourMiles ?? null),
         description,
         routePolyline: routePolyline.length ? JSON.stringify(routePolyline) : '',
         distanceKm: distanceKm || 0,
@@ -265,13 +282,25 @@ export default function EditRideScreen() {
 
                 <View style={styles.labelRow}>
                   <Ionicons name="navigate-circle-outline" size={16} color="#2774AE" style={{ marginRight: 4 }} />
-                  <ThemedText type="defaultSemiBold" style={styles.fieldLabel}>Max Detour</ThemedText>
+                  <ThemedText type="defaultSemiBold" style={styles.fieldLabel}>Max Detour (miles)</ThemedText>
                   <ThemedText style={styles.optionalLabel}>(Optional)</ThemedText>
                 </View>
                 <View style={styles.inputGroup}>
-                  <TextInput style={[styles.input, { flex: 1, marginBottom: 0 }]} placeholder="0-120" value={maxDetourMinutes} onChangeText={setMaxDetourMinutes} keyboardType="number-pad" placeholderTextColor={placeholderColor} />
-                  <View style={styles.addon}><Text style={styles.addonText}>min</Text></View>
+                  <TextInput
+                    style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                    placeholder="0-100"
+                    value={maxDetourMiles}
+                    onChangeText={setMaxDetourMiles}
+                    keyboardType="number-pad"
+                    placeholderTextColor={placeholderColor}
+                  />
+                  <View style={styles.addon}><Text style={styles.addonText}>mi</Text></View>
                 </View>
+                {ride?.maxDetourUnit === 'minutes' ? (
+                  <ThemedText style={[styles.helper, { marginTop: 4 }]}>
+                    Existing minutes-based detour is preserved but editing minutes is deferred until Week 7+.
+                  </ThemedText>
+                ) : null}
 
                 <View style={styles.labelRow}>
                   <Ionicons name="chatbubble-outline" size={16} color="#2774AE" style={{ marginRight: 4 }} />
@@ -343,4 +372,5 @@ const styles = StyleSheet.create({
   buttonDisabled: { backgroundColor: '#B0B0B0' },
   error: { color: '#D32F2F', fontSize: 14, textAlign: 'center', marginTop: 40 },
   errorInline: { color: '#D32F2F', fontSize: 13, textAlign: 'center', marginTop: 8, fontWeight: '500' },
+  helper: { color: '#687076', fontSize: 12, lineHeight: 16 },
 });

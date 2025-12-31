@@ -1,8 +1,9 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
 import React, { useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
-import { useDispatch, useSelector } from 'react-redux';
+import { Provider, useDispatch, useSelector } from 'react-redux';
 import ErrorAlert from '../components/ErrorAlert';
+import { registerForPushNotificationsAsync } from '../services/notifications/pushNotifications';
 import { setError, setUserProfile } from '../store/slices/authSlice';
 
 /**
@@ -33,7 +34,6 @@ import { setError, setUserProfile } from '../store/slices/authSlice';
  *    - No guard logic is active yet—this is documentation only.
  */
 
-import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { AuthProvider } from '../hooks/AuthContext';
 import { persistor, store } from '../store/store';
@@ -63,6 +63,14 @@ function RootLayoutInner() {
     setErrorAlert({ visible: false, message: '' });
     dispatch(setError(null));
   };
+
+  React.useEffect(() => {
+    if (!user?.uid) return;
+
+    registerForPushNotificationsAsync(user.uid).catch((err) => {
+      console.warn('[notifications] Registration failed', err?.message || err);
+    });
+  }, [user?.uid]);
 
   // Allow navigation/guard logic when loading is false
   const guardReady = !loading;
@@ -95,9 +103,9 @@ function RootLayoutInner() {
 
   // --- CENTRALIZED NAVIGATION GUARD LOGIC ---
   // 1. Define bypass groups/routes (for unauthenticated and special-case access)
-  const BYPASS_GROUPS = ['(auth)', 'modal'];
+  const BYPASS_GROUPS = React.useMemo(() => ['(auth)', 'modal'], []);
   // Do not bypass profile-setup so guard can redirect when profile becomes complete
-  const BYPASS_ROUTES = ['signin', 'signup', 'forgot-password'];
+  const BYPASS_ROUTES = React.useMemo(() => ['signin', 'signup', 'forgot-password'], []);
 
   // 2. Helper: is current route a bypass?
   const isBypass = React.useMemo(() => {
@@ -111,7 +119,7 @@ function RootLayoutInner() {
     if (segments.some(seg => BYPASS_GROUPS.includes(seg))) return true;
     if (BYPASS_ROUTES.includes(last)) return true;
     return false;
-  }, [segments, user, effectiveProfile]);
+  }, [segments, user, effectiveProfile, BYPASS_GROUPS, BYPASS_ROUTES]);
 
   // 3. Centralized guard effect: handles all redirect logic in one place
   React.useEffect(() => {

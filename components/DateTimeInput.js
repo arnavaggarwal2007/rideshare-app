@@ -28,7 +28,7 @@ export default function DateTimeInput({
       
       // Validate month and day if complete
       if (cleaned.length === 10) {
-        const [year, month, day] = cleaned.split('-').map(Number);
+        const [, month, day] = cleaned.split('-').map(Number);
         if (month > 12) cleaned = cleaned.slice(0, 5) + '12' + cleaned.slice(7);
         if (day > 31) cleaned = cleaned.slice(0, 8) + '31';
       }

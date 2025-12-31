@@ -41,7 +41,7 @@ export default function LocationSearchInput({
       if (searchResults.length === 0) {
         setError('No results found.');
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Search failed.');
     } finally {
       setIsSearching(false);
@@ -60,7 +60,7 @@ export default function LocationSearchInput({
     if (location?.address && location.address !== query) {
       setQuery(location.address);
     }
-  }, [location]);
+  }, [location, query]);
 
   return (
     <View style={styles.container}>

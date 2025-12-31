@@ -32,6 +32,15 @@ export default function ForgotPasswordScreen() {
     Lato_400Regular,
   });
 
+  // Track timeout id to clear on unmount (must be declared before any conditional returns)
+  const timeoutRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
   if (!fontsLoaded) return null;
 
   const isValidEmail = (email) => {
@@ -80,14 +89,6 @@ export default function ForgotPasswordScreen() {
     }
   };
 
-  // track timeout id to clear on unmount
-  const timeoutRef = useRef(null);
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, []);
-
   return (
     <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
       <ScrollView contentContainerStyle={styles.container}>
@@ -105,7 +106,7 @@ export default function ForgotPasswordScreen() {
         <View style={styles.header}>
           <Text style={styles.title}>Reset Password</Text>
           <Text style={styles.subtitle}>
-            Enter your email and we'll send you a link to reset your password
+            Enter your email and we&apos;ll send you a link to reset your password
           </Text>
         </View>
 

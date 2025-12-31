@@ -17,6 +17,7 @@ export default function ProfileScreen() {
     Montserrat_700Bold,
     Lato_400Regular,
   });
+
   if (!fontsLoaded) return null;
   if (loading) {
     return (
@@ -86,7 +87,6 @@ export default function ProfileScreen() {
         <TouchableOpacity style={styles.button} onPress={() => router.push('/modal/edit-profile')}>
           <Text style={styles.buttonText}>Edit Profile</Text>
         </TouchableOpacity>
-
 
         {/* Logout Button */}
         <TouchableOpacity
