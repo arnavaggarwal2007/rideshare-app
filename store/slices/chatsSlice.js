@@ -1,8 +1,8 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import {
-  createChatRoom,
-  sendChatMessage,
-  markChatMessagesAsRead,
+    createChatRoom,
+    markChatMessagesAsRead,
+    sendChatMessage,
 } from '../../services/firebase/firestore';
 
 // Async Thunks
