@@ -4,7 +4,7 @@ const initialState = {
 	user: null,
 	userProfile: null,
 	isAuthenticated: false,
-	loading: false,
+	loading: true, // Start with loading=true until AuthContext completes initial auth check
 	error: null,
 };
 
@@ -21,7 +21,10 @@ const authSlice = createSlice({
 		},
 		logout: (state) => {
 			state.user = null;
+			state.userProfile = null;
 			state.isAuthenticated = false;
+			state.loading = false;
+			state.error = null;
 		},
 		setLoading: (state, action) => {
 			state.loading = action.payload;

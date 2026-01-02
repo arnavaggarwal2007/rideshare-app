@@ -1,5 +1,6 @@
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Lato_400Regular, useFonts as useLatoFonts } from '@expo-google-fonts/lato';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,10 +11,16 @@ export default function TabsLayout() {
   const activeTintColor = '#FFFFFF';
   const inactiveTintColor = '#A3C7E8';
 
+  const [fontsLoaded] = useLatoFonts({
+    Lato_400Regular,
+  });
+
   const marginHorizontal = Math.max(16, 20 + Math.max(insets.left, insets.right));
   const marginBottom = Math.max(14, 18 + insets.bottom);
-  const height = 60 + Math.min(insets.bottom, 6);
-  const verticalPad = 8;
+  const height = 64;
+  const verticalPad = 6;
+
+  if (!fontsLoaded) return null;
 
   return (
     <Tabs
@@ -30,7 +37,7 @@ export default function TabsLayout() {
           height,
           paddingBottom: verticalPad,
           paddingTop: verticalPad,
-          paddingHorizontal: 12,
+          paddingHorizontal: 8,
           shadowColor: '#0A2540',
           shadowOpacity: 0.25,
           shadowOffset: { width: 0, height: 14 },
@@ -42,19 +49,20 @@ export default function TabsLayout() {
           overflow: 'visible',
         },
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: '600',
-          marginTop: 0,
+          fontFamily: 'Lato_400Regular',
+          marginTop: 2,
           textAlign: 'center',
-          alignSelf: 'center',
-          width: '100%',
         },
         tabBarItemStyle: {
-          paddingVertical: 8,
+          paddingVertical: 4,
           justifyContent: 'center',
           alignItems: 'center',
           flexDirection: 'column',
-          gap: 2,
+        },
+        tabBarIconStyle: {
+          marginBottom: 0,
         },
       }}
     >

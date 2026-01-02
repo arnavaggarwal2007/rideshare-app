@@ -21,8 +21,8 @@ export default function ProfileScreen() {
   if (!fontsLoaded) return null;
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#F7F9FB' }}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F7F9FB' }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF' }}>
           <ActivityIndicator size="large" color="#2774AE" />
           <Text style={{ marginTop: 16, fontSize: 16, color: '#2774AE', textAlign: 'center', fontFamily: 'Montserrat_700Bold', fontWeight: 'bold' }}>
             Loading your profile...
@@ -33,7 +33,7 @@ export default function ProfileScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#F7F9FB' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
       <ScrollView contentContainerStyle={styles.container}>
         {/* Profile Header */}
         <View style={styles.header}>
@@ -110,7 +110,8 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     padding: 24,
-    backgroundColor: '#F7F9FB',
+    paddingBottom: 100,
+    backgroundColor: '#FFFFFF',
     flexGrow: 1,
   },
   header: {

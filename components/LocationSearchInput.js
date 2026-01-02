@@ -60,7 +60,7 @@ export default function LocationSearchInput({
     if (location?.address && location.address !== query) {
       setQuery(location.address);
     }
-  }, [location, query]);
+  }, [location?.address]);
 
   return (
     <View style={styles.container}>
@@ -117,7 +117,7 @@ export default function LocationSearchInput({
       )}
 
       {location && (
-        <ThemedText style={styles.selectedText}>✓ Selected</ThemedText>
+        <ThemedText style={styles.selectedText}>✓ Selected - Clear and search again to change</ThemedText>
       )}
     </View>
   );

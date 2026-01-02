@@ -1,3 +1,10 @@
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, getFirestore, limit, onSnapshot, orderBy, query, serverTimestamp, startAfter, Timestamp, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { sendPushNotificationAsync } from '../notifications/pushNotifications';
+import { getUserPushTokens } from '../notifications/pushTokens';
+import { app } from './config';
+
+export const db = getFirestore(app);
+
 /**
  * Normalize coordinates between [lng, lat] (API) and {latitude, longitude} (Firestore/UI)
  */
@@ -156,9 +163,7 @@ export async function getActiveRidesPage({ limit: pageLimit = 20, startAfter: cu
 		}
 	}
 }
-import { deleteDoc, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, startAfter, updateDoc, where } from 'firebase/firestore';
-import { sendPushNotificationAsync } from '../notifications/pushNotifications';
-import { getUserPushTokens } from '../notifications/pushTokens';
+
 /**
  * Fetch a single ride by ID from Firestore
  * @param {string} rideId - The ride's document ID
@@ -233,23 +238,6 @@ export function subscribeToUserRides(userId, callback) {
 	});
 	return unsubscribe;
 }
-// services/firebase/firestore.js
-// Firestore CRUD for rides (scaffold)
-import { getFirestore } from 'firebase/firestore';
-import { app } from './config';
-
-export const db = getFirestore(app);
-
-async function notifyUserPush(userId, message) {
-	if (!userId) return;
-	try {
-		const tokens = await getUserPushTokens(userId);
-		if (!tokens.length) return;
-		await sendPushNotificationAsync(tokens, message);
-	} catch (err) {
-		console.warn('[notifications] Failed to send push', err?.message || err);
-	}
-}
 
 /**
  * Ride object schema (Firestore rides collection)
@@ -310,8 +298,6 @@ async function notifyUserPush(userId, message) {
  */
 
 // ...ride CRUD functions will be added here
-
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 
 /**
  * Create a new ride document in Firestore
@@ -592,7 +578,7 @@ export async function getTripById(tripId) {
  * Accept a ride request - atomically updates request status, creates trip, and decrements ride capacity
  * @param {string} requestId - The request's document ID
  * @param {string} rideId - The ride's document ID
- * @returns {Promise<{tripId: string}>}
+ * @returns {Promise<{tripId: string, chatId: string}>}
  */
 export async function acceptRideRequest(requestId, rideId) {
 	if (!requestId || !rideId) {
@@ -627,30 +613,112 @@ export async function acceptRideRequest(requestId, rideId) {
 		throw new Error('Not enough available seats');
 	}
 	
-	// Create trip document
-	const tripId = await createTrip(rideId, requestId, requestData, rideData);
+	// Fetch user profiles for chat participant details (outside batch)
+	const driverId = rideData.driverId;
+	const riderId = requestData.riderId;
 	
-	// Update request status to accepted
-	await updateDoc(requestRef, {
+	const [driverProfileSnap, riderProfileSnap] = await Promise.all([
+		getDoc(doc(db, 'users', driverId)),
+		getDoc(doc(db, 'users', riderId))
+	]);
+	
+	const driverProfile = driverProfileSnap.exists() ? driverProfileSnap.data() : { name: rideData.driverName };
+	const riderProfile = riderProfileSnap.exists() ? riderProfileSnap.data() : { name: requestData.riderName };
+	
+	// Generate document IDs before batch
+	const tripRef = doc(collection(db, 'trips'));
+	const tripId = tripRef.id;
+	const chatRef = doc(collection(db, 'chats'));
+	const chatId = chatRef.id;
+	
+	// Prepare trip data
+	const tripData = {
+		rideId,
+		requestId,
+		riderId: requestData.riderId,
+		riderName: requestData.riderName || 'Rider',
+		riderPhotoURL: requestData.riderPhotoURL || '',
+		riderRating: requestData.riderRating || 0,
+		driverId: rideData.driverId,
+		driverName: rideData.driverName || 'Driver',
+		driverPhotoURL: rideData.driverPhotoURL || '',
+		driverRating: rideData.driverRating || 0,
+		startLocation: rideData.startLocation || null,
+		endLocation: rideData.endLocation || null,
+		pickupLocation: requestData.pickupLocation || null,
+		dropoffLocation: requestData.dropoffLocation || null,
+		departureDate: rideData.departureDate || null,
+		departureTime: rideData.departureTime || null,
+		departureTimestamp: rideData.departureTimestamp || null,
+		routePolyline: rideData.routePolyline || null,
+		seatsBooked: requestData.seatsRequested || 1,
+		pricePerSeat: rideData.pricePerSeat || 0,
+		totalPrice: (rideData.pricePerSeat || 0) * (requestData.seatsRequested || 1),
+		status: 'confirmed',
+		chatId,
+		createdAt: serverTimestamp(),
+		updatedAt: serverTimestamp(),
+	};
+	
+	// Prepare chat data
+	const chatData = {
+		participants: [driverId, riderId],
+		participantDetails: {
+			[driverId]: {
+				name: driverProfile?.name || 'Driver',
+				photoURL: driverProfile?.photoURL || null,
+			},
+			[riderId]: {
+				name: riderProfile?.name || 'Rider',
+				photoURL: riderProfile?.photoURL || null,
+			},
+		},
+		tripId,
+		rideId,
+		lastMessage: null,
+		unreadCount: {
+			[driverId]: 0,
+			[riderId]: 0,
+		},
+		isActive: true,
+		createdAt: serverTimestamp(),
+		updatedAt: serverTimestamp(),
+	};
+	
+	// Use batch for atomicity - all writes succeed or all fail
+	const batch = writeBatch(db);
+	
+	// 1. Create trip
+	batch.set(tripRef, tripData);
+	
+	// 2. Create chat
+	batch.set(chatRef, chatData);
+	
+	// 3. Update request status
+	batch.update(requestRef, {
 		status: 'accepted',
 		respondedAt: serverTimestamp(),
 		updatedAt: serverTimestamp(),
 		tripId,
 	});
 	
-	// Decrement ride available seats
-	await updateDoc(rideRef, {
+	// 4. Decrement ride available seats
+	batch.update(rideRef, {
 		availableSeats: availableSeats - seatsRequested,
 		updatedAt: serverTimestamp(),
 	});
+	
+	// Commit all writes atomically
+	await batch.commit();
 
+	// Send push notification (outside batch, non-critical)
 	await notifyUserPush(requestData.riderId, {
 		title: 'Request accepted',
 		body: `${rideData.driverName || 'Your driver'} accepted your request.`,
-		data: { rideId, requestId, tripId },
+		data: { rideId, requestId, tripId, chatId },
 	});
 	
-	return { tripId };
+	return { tripId, chatId };
 }
 
 /**
@@ -738,5 +806,502 @@ export function subscribeToRiderRequests(riderId, callback) {
 			};
 		});
 		callback(requests);
+	});
+}
+
+// ============================================
+// CHAT FUNCTIONS
+// ============================================
+
+/**
+ * Create a new chat room when a trip is confirmed
+ * @param {string} driverId - Driver's user ID
+ * @param {string} riderId - Rider's user ID
+ * @param {string} tripId - Trip document ID
+ * @param {string} rideId - Ride document ID
+ * @param {Object} driverProfile - Driver profile with name and photoURL
+ * @param {Object} riderProfile - Rider profile with name and photoURL
+ * @returns {Promise<string>} - The new chat's document ID
+ */
+export async function createChatRoom(driverId, riderId, tripId, rideId, driverProfile, riderProfile) {
+	if (!driverId || !riderId || !tripId || !rideId) {
+		throw new Error('driverId, riderId, tripId, and rideId are required');
+	}
+
+	const chatData = {
+		participants: [driverId, riderId],
+		participantDetails: {
+			[driverId]: {
+				name: driverProfile?.name || 'Driver',
+				photoURL: driverProfile?.photoURL || null,
+			},
+			[riderId]: {
+				name: riderProfile?.name || 'Rider',
+				photoURL: riderProfile?.photoURL || null,
+			},
+		},
+		tripId,
+		rideId,
+		lastMessage: null,
+		unreadCount: {
+			[driverId]: 0,
+			[riderId]: 0,
+		},
+		isActive: true,
+		createdAt: serverTimestamp(),
+		updatedAt: serverTimestamp(),
+	};
+
+	const chatsRef = collection(db, 'chats');
+	const chatDoc = await addDoc(chatsRef, chatData);
+	return chatDoc.id;
+}
+
+/**
+ * Send push notification to a user
+ * @param {string} userId - Recipient user ID
+ * @param {Object} notification - Notification object with title, body, data
+ * @returns {Promise<void>}
+ */
+export async function notifyUserPush(userId, notification) {
+	if (!userId || !notification) {
+		console.warn('[notifyUserPush] Missing userId or notification object');
+		return;
+	}
+
+	try {
+		const tokens = await getUserPushTokens(userId);
+		if (!tokens || tokens.length === 0) {
+			// This is expected when user hasn't registered for push notifications
+			// or is using Expo Go which doesn't support push notifications in SDK 53+
+			console.log('[notifyUserPush] No push tokens found for user:', userId);
+			return;
+		}
+
+		const result = await sendPushNotificationAsync(tokens, {
+			title: notification.title || 'RideShare',
+			body: notification.body || '',
+			data: notification.data || {},
+		});
+
+		if (result.sent > 0) {
+			console.log('[notifyUserPush] Sent notification to', result.sent, 'device(s)');
+		} else {
+			console.warn('[notifyUserPush] Failed to send notification:', result.error);
+		}
+	} catch (error) {
+		// Permission errors can occur when the push token document doesn't exist
+		// or when running in Expo Go (SDK 53+ removed push notification support)
+		const errorMessage = error?.message || String(error);
+		if (errorMessage.includes('permission') || errorMessage.includes('permissions')) {
+			console.log('[notifyUserPush] Cannot send notification (no push token or permissions):', userId);
+		} else {
+			console.error('[notifyUserPush] Error sending notification:', errorMessage);
+		}
+	}
+}
+
+/**
+ * Send a message in a chat
+ * @param {string} chatId - Chat document ID
+ * @param {string} text - Message text
+ * @param {string} senderId - Sender's user ID
+ * @param {string} senderName - Sender's display name
+ * @param {string} senderPhotoURL - Sender's photo URL
+ * @returns {Promise<string>} - The new message's document ID
+ */
+export async function sendChatMessage(chatId, text, senderId, senderName, senderPhotoURL) {
+	if (!chatId || !text || !senderId) {
+		throw new Error('chatId, text, and senderId are required');
+	}
+
+	const messagesRef = collection(db, `chats/${chatId}/messages`);
+	const messageData = {
+		senderId,
+		senderName: senderName || 'User',
+		senderPhotoURL: senderPhotoURL || null,
+		text,
+		timestamp: serverTimestamp(),
+		isRead: false,
+		type: 'text',
+	};
+
+	const messageDoc = await addDoc(messagesRef, messageData);
+
+	// Update chat's lastMessage and updatedAt
+	const chatRef = doc(db, 'chats', chatId);
+	await updateDoc(chatRef, {
+		lastMessage: {
+			text,
+			senderId,
+			timestamp: serverTimestamp(),
+		},
+		updatedAt: serverTimestamp(),
+	});
+
+	// Send push notification to the other participant
+	const chatSnap = await getDoc(chatRef);
+	if (chatSnap.exists()) {
+		const chatData = chatSnap.data();
+		const otherParticipant = chatData.participants.find(p => p !== senderId);
+		if (otherParticipant) {
+			await notifyUserPush(otherParticipant, {
+				title: senderName || 'New Message',
+				body: text,
+				data: { type: 'new_message', chatId },
+			});
+		}
+	}
+
+	return messageDoc.id;
+}
+
+/**
+ * Get chat by ID
+ * @param {string} chatId - Chat document ID
+ * @returns {Promise<Object|null>} - Chat object or null if not found
+ */
+export async function getChatById(chatId) {
+	if (!chatId) throw new Error('chatId is required');
+	const chatRef = doc(db, 'chats', chatId);
+	const chatSnap = await getDoc(chatRef);
+	if (!chatSnap.exists()) return null;
+	return { id: chatSnap.id, ...chatSnap.data() };
+}
+
+/**
+ * Subscribe to real-time updates for a user's chat list
+ * @param {string} userId - The user's ID
+ * @param {Function} callback - Callback function called with updated chats array
+ * @returns {Function} - Unsubscribe function
+ */
+export function subscribeToUserChats(userId, callback) {
+	if (!userId) throw new Error('userId is required');
+
+	const chatsRef = collection(db, 'chats');
+	const q = query(
+		chatsRef,
+		where('participants', 'array-contains', userId),
+		orderBy('updatedAt', 'desc')
+	);
+
+	return onSnapshot(q, (snapshot) => {
+		const chats = snapshot.docs.map(doc => ({
+			id: doc.id,
+			...doc.data(),
+		}));
+		
+		// Deduplicate by chat ID to prevent duplicate keys
+		const uniqueChats = Array.from(
+			new Map(chats.map(chat => [chat.id, chat])).values()
+		);
+		
+		callback(uniqueChats);
+	});
+}
+
+/**
+ * Subscribe to real-time messages in a specific chat
+ * @param {string} chatId - Chat document ID
+ * @param {Function} callback - Callback function called with updated messages array
+ * @returns {Function} - Unsubscribe function
+ */
+export function subscribeToChat(chatId, callback) {
+	if (!chatId) throw new Error('chatId is required');
+
+	const messagesRef = collection(db, `chats/${chatId}/messages`);
+	const q = query(messagesRef, orderBy('timestamp', 'desc'));
+
+	return onSnapshot(q, (snapshot) => {
+		const messages = snapshot.docs.map(doc => ({
+			id: doc.id,
+			...doc.data(),
+		}));
+		callback(messages);
+	});
+}
+
+/**
+ * Mark all unread messages in a chat as read for a specific user
+ * @param {string} chatId - Chat document ID
+ * @param {string} userId - User ID marking messages as read
+ * @returns {Promise<void>}
+ */
+export async function markChatMessagesAsRead(chatId, userId) {
+	if (!chatId || !userId) {
+		throw new Error('chatId and userId are required');
+	}
+
+	const messagesRef = collection(db, `chats/${chatId}/messages`);
+	const q = query(
+		messagesRef,
+		where('senderId', '!=', userId),
+		where('isRead', '==', false)
+	);
+
+	const snapshot = await getDocs(q);
+	const updatePromises = snapshot.docs.map(docSnap =>
+		updateDoc(doc(db, `chats/${chatId}/messages`, docSnap.id), { isRead: true })
+	);
+
+	await Promise.all(updatePromises);
+
+	// Reset unread count for this user in the chat document
+	const chatRef = doc(db, 'chats', chatId);
+	const chatSnap = await getDoc(chatRef);
+	if (chatSnap.exists()) {
+		const unreadCount = chatSnap.data().unreadCount || {};
+		unreadCount[userId] = 0;
+		await updateDoc(chatRef, { unreadCount });
+	}
+}
+
+/**
+ * Update trip status with validation and status history tracking
+ * @param {string} tripId - Trip document ID
+ * @param {string} driverId - Driver ID (must match trip's driverId for authorization)
+ * @param {string} newStatus - New status: 'confirmed', 'in-progress', 'completed', 'cancelled'
+ * @param {Timestamp} timestamp - Current server timestamp
+ * @param {string} cancellationReason - Optional reason for cancellation
+ * @returns {Promise<Object>} - Updated trip object
+ */
+export async function updateTripStatus(tripId, driverId, newStatus, timestamp, cancellationReason = '') {
+	if (!tripId || !driverId || !newStatus) {
+		throw new Error('tripId, driverId, and newStatus are required');
+	}
+
+	// Valid status transitions
+	const validStatuses = ['confirmed', 'in-progress', 'completed', 'cancelled'];
+	if (!validStatuses.includes(newStatus)) {
+		throw new Error(`Invalid status: ${newStatus}`);
+	}
+
+	const tripRef = doc(db, 'trips', tripId);
+	const tripSnap = await getDoc(tripRef);
+
+	if (!tripSnap.exists()) {
+		throw new Error('Trip not found');
+	}
+
+	const tripData = tripSnap.data();
+
+	// Verify user is the driver
+	if (tripData.driverId !== driverId) {
+		throw new Error('Only the driver can update trip status');
+	}
+
+	// Validate transition logic
+	const currentStatus = tripData.status || 'confirmed';
+	const statusOrder = ['confirmed', 'in-progress', 'completed'];
+	const currentIndex = statusOrder.indexOf(currentStatus);
+	const newIndex = statusOrder.indexOf(newStatus);
+
+	// Allow forward transitions only (except cancellation which can happen from confirmed)
+	if (newStatus !== 'cancelled' && newIndex <= currentIndex) {
+		throw new Error(`Cannot transition from ${currentStatus} to ${newStatus}`);
+	}
+
+	if (newStatus === 'cancelled' && currentStatus !== 'confirmed') {
+		throw new Error('Can only cancel confirmed trips');
+	}
+
+	// Build update object
+	const updateData = {
+		status: newStatus,
+		updatedAt: timestamp,
+	};
+
+	// Add to statusHistory array
+	// Use Timestamp type for proper Firestore serialization
+	const statusHistory = tripData.statusHistory || [];
+	const historyEntry = {
+		status: newStatus,
+		timestamp: Timestamp.now(), // Use Firestore Timestamp for proper serialization
+		updatedBy: driverId,
+	};
+	
+	// Add cancellation reason if provided
+	if (newStatus === 'cancelled' && cancellationReason) {
+		historyEntry.reason = cancellationReason;
+	}
+	
+	statusHistory.push(historyEntry);
+	updateData.statusHistory = statusHistory;
+
+	// Store cancellation reason at trip level if cancelled
+	if (newStatus === 'cancelled' && cancellationReason) {
+		updateData.cancellationReason = cancellationReason;
+	}
+
+	// Set startedAt when transitioning to in-progress
+	if (newStatus === 'in-progress') {
+		updateData.startedAt = timestamp;
+	}
+
+	// Set completedAt when transitioning to completed
+	if (newStatus === 'completed') {
+		updateData.completedAt = timestamp;
+	}
+
+	// Perform update
+	await updateDoc(tripRef, updateData);
+
+	// Return updated trip
+	const updatedSnap = await getDoc(tripRef);
+	return { id: updatedSnap.id, ...updatedSnap.data() };
+}
+
+/**
+ * Rider confirms trip completion
+ * This saves the rider's confirmation to Firestore so it persists across sessions
+ * @param {string} tripId - Trip ID
+ * @param {string} riderId - Rider's user ID
+ * @returns {Promise<Object>} - Updated trip object
+ */
+export async function confirmTripCompletionByRider(tripId, riderId) {
+	if (!tripId || !riderId) {
+		throw new Error('tripId and riderId are required');
+	}
+
+	const tripRef = doc(db, 'trips', tripId);
+	const tripSnap = await getDoc(tripRef);
+
+	if (!tripSnap.exists()) {
+		throw new Error('Trip not found');
+	}
+
+	const tripData = tripSnap.data();
+
+	// Verify user is the rider
+	if (tripData.riderId !== riderId) {
+		throw new Error('Only the rider can confirm trip completion');
+	}
+
+	// Verify trip is completed
+	if (tripData.status !== 'completed') {
+		throw new Error('Trip must be completed by driver before rider can confirm');
+	}
+
+	// Update trip with rider confirmation
+	const updateData = {
+		riderConfirmedCompletion: true,
+		riderConfirmedAt: Timestamp.now(),
+		updatedAt: Timestamp.now(),
+	};
+
+	await updateDoc(tripRef, updateData);
+
+	// Return updated trip
+	const updatedSnap = await getDoc(tripRef);
+	return { id: updatedSnap.id, ...updatedSnap.data() };
+}
+
+/**
+ * Subscribe to user's trips (as driver or rider) with real-time updates
+ * Uses two parallel subscriptions to avoid nested listener memory leaks
+ * @param {string} userId - User ID
+ * @param {Function} callback - Callback function called with trips array
+ * @returns {Function} - Unsubscribe function
+ */
+export function subscribeToUserTrips(userId, callback) {
+	if (!userId) throw new Error('userId is required');
+
+	const tripsRef = collection(db, 'trips');
+	let driverTrips = [];
+	let riderTrips = [];
+	let isInitialized = { driver: false, rider: false };
+
+	// Helper to merge and deduplicate trips
+	const mergeAndCallback = () => {
+		// Only call callback once both subscriptions have fired at least once
+		if (!isInitialized.driver || !isInitialized.rider) return;
+
+		// Combine and deduplicate
+		const allTrips = [...driverTrips, ...riderTrips];
+		const seenIds = new Set();
+		const uniqueTrips = allTrips.filter(trip => {
+			if (seenIds.has(trip.id)) return false;
+			seenIds.add(trip.id);
+			return true;
+		});
+
+		// Sort by departureTimestamp descending (newest first)
+		uniqueTrips.sort((a, b) => {
+			const aTime = a.departureTimestamp?.toMillis?.() || 0;
+			const bTime = b.departureTimestamp?.toMillis?.() || 0;
+			return bTime - aTime;
+		});
+
+		callback(uniqueTrips);
+	};
+
+	// Query trips where user is driver
+	const q1 = query(
+		tripsRef,
+		where('driverId', '==', userId)
+	);
+
+	// Query trips where user is rider
+	const q2 = query(
+		tripsRef,
+		where('riderId', '==', userId)
+	);
+
+	// Subscribe to driver trips
+	const unsubscribe1 = onSnapshot(q1, (snapshot) => {
+		driverTrips = snapshot.docs.map(doc => ({
+			id: doc.id,
+			...doc.data(),
+		}));
+		isInitialized.driver = true;
+		mergeAndCallback();
+	}, (error) => {
+		console.error('[subscribeToUserTrips] Driver trips error:', error);
+	});
+
+	// Subscribe to rider trips
+	const unsubscribe2 = onSnapshot(q2, (snapshot) => {
+		riderTrips = snapshot.docs.map(doc => ({
+			id: doc.id,
+			...doc.data(),
+		}));
+		isInitialized.rider = true;
+		mergeAndCallback();
+	}, (error) => {
+		console.error('[subscribeToUserTrips] Rider trips error:', error);
+	});
+
+	// Return a function that unsubscribes from both queries
+	return () => {
+		unsubscribe1();
+		unsubscribe2();
+	};
+}
+
+/**
+ * Subscribe to real-time updates for a specific trip
+ * @param {string} tripId - Trip document ID
+ * @param {Function} callback - Callback function called with updated trip
+ * @returns {Function} - Unsubscribe function
+ */
+export function subscribeToTrip(tripId, callback) {
+	if (!tripId) throw new Error('tripId is required');
+
+	const tripRef = doc(db, 'trips', tripId);
+	
+	return onSnapshot(tripRef, (snapshot) => {
+		if (!snapshot.exists()) {
+			callback(null);
+			return;
+		}
+		
+		const tripData = {
+			id: snapshot.id,
+			...snapshot.data(),
+		};
+		
+		callback(tripData);
+	}, (error) => {
+		console.error('[subscribeToTrip] Error:', error);
 	});
 }

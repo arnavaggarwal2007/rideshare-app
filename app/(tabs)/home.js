@@ -305,8 +305,9 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F7F9FB" />
+    <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
       
       <View style={styles.header}>
         <View style={styles.headerRow}>
@@ -455,14 +456,15 @@ export default function HomeScreen() {
           onEndReachedThreshold={0.5}
         />
       )}
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F7F9FB',
+    backgroundColor: '#FFFFFF',
   },
   header: {
     padding: 24,

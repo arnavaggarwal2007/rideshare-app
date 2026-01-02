@@ -3,7 +3,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { auth, db } from '../firebaseConfig';
-import { logout as reduxLogout, setUser as setReduxUser, setUserProfile as setReduxUserProfile } from '../store/slices/authSlice';
+import { logout as reduxLogout, setLoading as setReduxLoading, setUser as setReduxUser, setUserProfile as setReduxUserProfile } from '../store/slices/authSlice';
 
 const AuthContext = createContext(null);
 
@@ -14,6 +14,11 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(false);
   const dispatch = useDispatch();
+
+  // Sync loading state with Redux
+  useEffect(() => {
+    dispatch(setReduxLoading(loading));
+  }, [loading, dispatch]);
 
   const refreshProfile = useCallback(async (uid) => {
     setProfileLoading(true);
@@ -53,7 +58,7 @@ export function AuthProvider({ children }) {
     } finally {
       setProfileLoading(false);
     }
-  }, []);
+  }, [dispatch]);
 
   useEffect(() => {
     let active = true;

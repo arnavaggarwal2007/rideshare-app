@@ -1,3 +1,5 @@
+import { Lato_400Regular } from '@expo-google-fonts/lato';
+import { Montserrat_700Bold, useFonts } from '@expo-google-fonts/montserrat';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -24,6 +26,10 @@ export default function MyRidesScreen() {
   const [expandedRides, setExpandedRides] = useState({});
   const [mapPreview, setMapPreview] = useState(null); // { ride, request }
   const mapRef = useRef(null);
+  const [fontsLoaded] = useFonts({
+    Montserrat_700Bold,
+    Lato_400Regular,
+  });
   const [requestAddresses, setRequestAddresses] = useState({}); // { [requestId]: { pickup, dropoff, resolved: true } }
 
   // Use subscription for real-time updates, dispatch to Redux
@@ -295,8 +301,10 @@ export default function MyRidesScreen() {
     new Map((myRides || []).filter(r => r && r.id).map(r => [r.id, r])).values()
   );
 
+  if (!fontsLoaded) return null;
+
   return (
-    <SafeAreaView edges={['top', 'left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: '#F7F9FB' }}>
+    <SafeAreaView edges={['top', 'left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
       <View style={styles.header}>
         <ThemedText type="title" style={styles.title}>My Rides</ThemedText>
         <TouchableOpacity onPress={() => router.push('/ride/create')} accessibilityRole="button" accessibilityLabel="Add new ride">

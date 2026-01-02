@@ -62,8 +62,8 @@ export const acceptRequestThunk = createAsyncThunk(
   'requests/acceptRequest',
   async ({ requestId, rideId }, { rejectWithValue }) => {
     try {
-      const { tripId } = await acceptRideRequest(requestId, rideId);
-      return { requestId, tripId };
+      const { tripId, chatId } = await acceptRideRequest(requestId, rideId);
+      return { requestId, tripId, chatId };
     } catch (error) {
       return rejectWithValue(error?.message || 'Failed to accept request');
     }

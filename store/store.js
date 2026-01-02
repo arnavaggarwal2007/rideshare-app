@@ -22,6 +22,7 @@ function stateSanitizer(state) {
 }
 
 import authReducer from './slices/authSlice';
+import chatsReducer from './slices/chatsSlice';
 import feedReducer from './slices/feedSlice';
 import requestsReducer from './slices/requestsSlice';
 import ridesReducer from './slices/ridesSlice';
@@ -30,11 +31,12 @@ import tripsReducer from './slices/tripsSlice';
 const persistConfig = {
 	key: 'root',
 	storage: AsyncStorage,
-	whitelist: ['auth', 'rides', 'trips', 'requests'],
+	whitelist: ['auth', 'rides', 'trips', 'requests', 'chats'],
 };
 
 const rootReducer = combineReducers({
 	auth: authReducer,
+	chats: chatsReducer,
 	feed: feedReducer,
 	rides: ridesReducer,
 	trips: tripsReducer,

@@ -134,7 +134,7 @@ export default function RideDetailsScreen() {
   })();
 
   return (
-    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: '#F7F9FB' }}>
+    <SafeAreaView edges={['top', 'left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: '#F7F9FB' }}>
       <ScrollView contentContainerStyle={styles.container}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back">
           <ThemedText style={styles.backButtonText}>← Back</ThemedText>

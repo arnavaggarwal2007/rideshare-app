@@ -267,11 +267,13 @@ const ProfileSetupScreen = () => {
         <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
         >
             <ScrollView
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            scrollEnabled={true}
             >
                 <Text style={styles.title}>Create your profile</Text>
                 <Text style={styles.subtitle}>

@@ -1,651 +1,482 @@
-# Week 6: Messaging & Trip Management - Implementation Plan
+# Week 6 Implementation Plan
+## In-App Chat, Trip Status Tracking & Trip Sharing
 
-**Created**: December 30, 2025  
-**Status**: Ready for implementation after Week 5 completion  
-**Estimated Hours**: 40 hours (Days 1-5)  
-**Prerequisites**: All Week 5 work completed, including push notification system
-
----
-
-## Critical Dependencies from Week 5
-
-### ✅ Prerequisites That MUST Be Completed in Week 5:
-
-1. **Push Notification System** (BLOCKING for Week 6 messaging)
-   - Expo notifications setup with FCM
-   - User push token storage in Firestore
-   - Cloud Function for sending notifications
-   - Notification listeners with deep linking
-   - Status: Must be 100% complete before Day 1 of Week 6
-   - Reason: Week 6 messaging depends on notification alerts for new messages
-
-2. **Trip Details Screen (Minimal)**
-   - Basic trip information display
-   - Message button that navigates to chat
-   - Trip status badge (shows "confirmed")
-   - Status: Foundation in place, full features in Week 6
-   - Reason: Chat UI needs somewhere to open from
-
-3. **Pickup/Dropoff Location Storage**
-   - Request documents include pickup/dropoff locations
-   - Trip documents include pickup/dropoff locations
-   - Status: Confirmed implemented in Week 5 detour validation
-   - Reason: Week 6 trip details displays these locations
-
-### ⚠️ Technical Debt from Week 5:
-
-**Do NOT attempt in Week 6 (defer to Week 7+):**
-1. Time-based max detour validation (minutes) - requires traffic modeling
-2. Real-time detour feedback as user drags map marker - too API-intensive
-3. Advanced notification scheduling - cron job optimization
+**Duration**: 40 hours (5 days)  
+**Created**: December 31, 2025  
+**Prerequisites**: Week 5 complete (Push notifications, Trip creation, Real-time listeners)
 
 ---
 
-## Week 6 Architecture Overview
+## Overview
 
-### Data Flow for Week 6 Features
+This plan implements three interconnected features:
+- **Days 1-2**: In-App Messaging (16 hours)
+- **Days 3-4**: Trip Status Tracking (16 hours)
+- **Day 5**: Trip Sharing & Deep Linking (8 hours)
 
-```
-Trip Created (Week 5)
-    ↓
-Create Chat Document (Week 6 Day 1)
-    ↓
-Messages Subcollection (Week 6 Day 1-2)
-    ↓
-Rider/Driver Exchange Messages (Week 6 Day 1-2)
-    ↓
-Trip Status Updates (Week 6 Day 3-4)
-    ↓
-Trip Details UI with Status Controls (Week 6 Day 3-4)
-    ↓
-Trip Completion & Rating Flow (Week 7 - NOT Week 6)
-    ↓
-Trip Share Feature (Week 6 Day 5)
-```
-
-### Key Firestore Collections for Week 6
-
-**chats/{chatId}** (Created when trip confirmed)
-- participants: [driverId, riderId]
-- rideId, tripId (links to original ride and trip)
-- lastMessage, unreadCount, updatedAt
-- Subcollection: messages/{messageId}
-
-**messages subcollection** (chats/{chatId}/messages/{messageId})
-- senderId, text, timestamp
-- Ordered chronologically for chat UI
-
-**trips/{tripId}** (Updated in Week 6)
-- status: 'confirmed' → 'in_progress' → 'completed'
-- statusHistory: [{ status, timestamp }, ...]
-- startedAt, completedAt timestamps
-- Immutable after created (but status field updates)
+All infrastructure is in place from Week 5. This plan breaks each feature into atomic, sequentially buildable steps following established patterns.
 
 ---
 
-## Week 6 Day-by-Day Breakdown
+## PHASE 1: REDUX & CHAT INFRASTRUCTURE (Prerequisite)
 
-### Days 1-2: In-App Chat Setup (16 hours)
+### 1.1 Create chatsSlice Redux state management
+- Define initial state: `{ chats: [], currentChat: null, messages: [], loading, error }`
+- Create thunks: `fetchUserChats`, `createChat`, `sendMessage`, `markMessagesRead`
+- Add reducers: `setChats`, `addMessage`, `updateChatPreview`, `setCurrentChat`
+- Add to store configuration in `store.js`
 
-**Goal**: Real-time messaging between driver and rider
+### 1.2 Create Firestore chat operations in services/firebase/firestore.js
+- `createChatRoom()` - Create chat document with participants when trip confirmed
+- `sendMessage()` - Add message to messages subcollection with isRead flag
+- `subscribeToUserChats()` - Real-time listener for user's chat list (participants array-contains)
+- `subscribeToChat()` - Real-time listener for specific chat's messages (ordered by timestamp)
+- `markChatMessagesRead()` - Update isRead flags for user's unread messages
+- `updateChatPreview()` - Update lastMessage in chat document (called after each send)
 
-#### Architecture: Chat Creation Trigger
+### 1.3 Update Firestore security rules
+- Add collection rule: `chats` - only participants can read/write
+- Add collection rule: `chats/{chatId}/messages` - only participants can read, create (immutable)
+- Update `trips` rule to allow partial trip update (status field only for driver)
 
-When driver accepts a ride request in Week 5 (acceptRideRequest thunk):
-- Firestore transaction creates both trip AND chat document
-- Chat document includes both participants, trip/ride links
-- Messages subcollection starts empty
+### 1.4 Install gifted-chat dependency
+- Add `react-native-gifted-chat` to package.json for modern chat UI
+- Verify compatibility with Expo Go
 
-**Firestore Structure for Reference**:
-```
-chats/{chatId}
-├── participants: ["driverId", "riderId"]
-├── participantDetails: { driverId: {name, photo}, riderId: {name, photo} }
-├── rideId: "rideId123"
-├── tripId: "tripId456"
-├── lastMessage: { text, senderId, timestamp }
-├── unreadCount: { driverId: 0, riderId: 2 }
-├── isActive: true
-├── createdAt, updatedAt
-└── messages/{messageId}
-    ├── messageId, senderId, text
-    ├── timestamp, isRead
-    └── type: "text" (future: "image")
-```
+---
 
-#### Tasks for Day 1-2:
+## PHASE 2: IN-APP MESSAGING IMPLEMENTATION
 
-**Day 1: Messages Tab Screen (8 hours)**
+### 2.1 Create app/chat/[id].js chat details screen
+- Accept route params: `chatId` from navigation
+- Dispatch `setCurrentChat` Redux action
+- Set up real-time listener: `subscribeToChat(chatId, (messages) => dispatch(setMessages()))`
+- Return unsubscribe in cleanup
 
-* [ ] Implement [app/(tabs)/messages.js](app/(tabs)/messages.js) (currently stub)
-  * [ ] Query current user's chats from Firestore
-  * [ ] Display chat list with:
-    * [ ] Participant name and photo
-    * [ ] Last message preview text
-    * [ ] Timestamp of last message
-    * [ ] Unread count badge (show only if > 0)
-    * [ ] Visual "unread" indicator (bold text or highlighting)
-  * [ ] On chat tap: Navigate to [app/chat/[id].js](app/chat/[id].js)
-  * [ ] Implement pull-to-refresh to reload chat list
-  * [ ] Handle empty state (no chats yet)
-  * [ ] Real-time updates via onSnapshot listener
+### 2.2 Build Gifted Chat UI integration
+- Render `<GiftedChat>` with messages from Redux state
+- Map Firebase message objects to Gifted Chat format: `{ _id, text, createdAt, user }`
+- Connect send handler: `onSend` → dispatch `sendMessage(chatId, text, userId)`
+- Add user avatar from `participantDetails` in chat document
 
-**Code Pattern (for reference)**:
+### 2.3 Implement message sending flow
+- On `onSend`, dispatch `sendMessage` thunk
+- Thunk calls Firestore: add message doc to messages subcollection with `{ text, senderId, timestamp, isRead: false }`
+- Thunk then calls `updateChatPreview` to set `lastMessage` in chat document
+- Dispatch `addMessage` reducer to update local state immediately for optimistic UI
+- Handle errors with `ErrorAlert` component
+
+### 2.4 Implement message read status updates
+- When chat screen mounts: dispatch `markChatMessagesRead(chatId, userId)` 
+- Updates all messages with `senderId !== userId` to `isRead: true`
+- Real-time listener picks up changes from other user
+
+### 2.5 Build chat header with user info
+- Display other participant's name and photo from `participantDetails`
+- Add status indicator (online/offline - P2 feature, show as "Active" for now)
+- Add back button that clears `currentChat` from Redux on unmount
+
+### 2.6 Implement messages tab (app/(tabs)/messages.js)
+- Replace stub with real UI showing chat list
+- Dispatch `fetchUserChats(userId)` on mount with real-time listener
+- Render FlatList of chats from Redux state
+- Each chat item shows: other user's photo, name, last message preview, timestamp
+- Sort chats by `updatedAt` (descending) 
+- Tap chat → navigate to `chat/[chatId]`
+- Add empty state: "No active chats yet"
+
+### 2.7 Add navigation to chat from trip details
+- In app/trip/[id].js, add button: "Message Driver" (or "Message Rider")
+- On tap: check if chat exists for this trip; if not, create it via thunk
+- Navigate to `chat/[chatId]` after creation
+- Disable button if trip is Completed/Cancelled
+
+### 2.8 Implement message notifications
+- Modify `pushNotifications.js` to handle message topic subscriptions
+- When chat created: subscribe user to topic `chat_{chatId}`
+- When message sent: call Cloud Function to send FCM notification to other participant
+- Notification payload: `{ chatId, senderName, messagePreview }`
+- Tap notification → navigate to `chat/[chatId]`
+
+### 2.9 Hook chat creation into trip confirmation
+- Modify `acceptRideRequest` thunk in store/slices/requestsSlice.js
+- After trip creation, call `createChatRoom(driverId, riderId, tripId)`
+- Pass chat creation result to UI so immediate navigation is possible
+
+---
+
+## PHASE 3: TRIP STATUS TRACKING
+
+### 3.1 Update trips Firestore operations
+- Add `updateTripStatus()` function to services/firebase/firestore.js
+- Function signature: `updateTripStatus(tripId, driverId, newStatus, timestamp)`
+- Validates: only driver can update, only allow Pending→Confirmed→InProgress→Completed transitions
+- Updates fields: `status`, `statusHistory` (append entry), `startedAt` (if InProgress), `completedAt` (if Completed)
+- Returns updated trip object
+
+### 3.2 Create tripsSlice Redux actions
+- Add thunk `updateTripStatus` that calls Firestore function
+- Handle validation errors (only driver, invalid transition)
+- Update local state with new trip status
+- Dispatch success notification
+
+### 3.3 Modify app/trip/[id].js to show trip status timeline
+- Display current status: Pending / Confirmed / In Progress / Completed
+- Add visual indicator: color-coded badge or progress bar
+- Show status history: list of timestamps when each status was reached
+- Display relevant info per status:
+  - **Pending**: Waiting for driver response (rider only sees this)
+  - **Confirmed**: Pickup details, estimated time
+  - **InProgress**: Show live trip info (map coming P2)
+  - **Completed**: Trip summary, option to rate/review (future P2)
+
+### 3.4 Add driver controls - "Start Trip" button
+- Show in app/trip/[id].js when status === Confirmed and user is driver
+- On tap: show confirmation Alert: "I've picked up the passenger. Start trip?"
+- On confirm: dispatch `updateTripStatus(tripId, 'InProgress')`
+- Button triggers haptic feedback and disables while loading
+- Update UI immediately via Redux state
+
+### 3.5 Add driver controls - "Complete Trip" button
+- Show in app/trip/[id].js when status === InProgress and user is driver
+- On tap: show confirmation Alert: "Trip complete? Passenger dropped off?"
+- On confirm: dispatch `updateTripStatus(tripId, 'Completed')`
+- Add input field for final notes (optional - P2 enhancement)
+- Button triggers haptic feedback and disables while loading
+
+### 3.6 Add rider confirmation on trip completion (P1)
+- When driver marks trip Completed, rider gets notification
+- Rider sees new button in trip details: "Confirm Completion"
+- On tap: confirmation alert then updates local status
+- Store confirmation timestamp in trip record
+- Only then is trip fully finalized
+
+### 3.7 Implement trip status change notifications
+- Modify `updateTripStatus` thunk to dispatch notification after each status change
+- Use `expo-notifications` to send local notification to other party
+- Payload: Trip ID, new status, timestamp
+- Notification text varies by status: "Driver started trip", "Trip completed", etc.
+
+### 3.8 Add trip cancellation with time buffer
+- Show "Cancel Trip" button in trip details when status is Confirmed
+- Add cancellation logic: only allowed if trip starts in > 1 hour (or configurable)
+- On tap: show alert with warning and reason input
+- If approved: update trip status to Cancelled, store cancellation reason/timestamp
+- Notify other party with reason
+
+### 3.9 Update app/(tabs)/my-trips.js to show status visually
+- Group trips by status instead of just Pending/Accepted/Declined
+- Add status badges with color coding (Pending: yellow, InProgress: blue, Completed: green, Cancelled: red)
+- Show next upcoming action per trip: "Start trip", "Complete trip", "Confirm completion"
+- Tap trip → navigate to trip details
+
+### 3.10 Implement trip reminder notifications
+- Create background task: check trips daily at 24h and 2h before start time
+- Use `expo-task-manager` if available, else use simple scheduled notifications
+- Send notification: "Your trip starts in 24 hours / 2 hours" with trip details
+- Tap notification → navigate to trip details
+
+---
+
+## PHASE 4: TRIP SHARING & DEEP LINKING
+
+### 4.1 Add share button to app/trip/[id].js
+- Button: "Share Trip" in header or bottom action bar
+- Icon: `share` from `Ionicons`
+- On tap: triggers trip sharing logic
+
+### 4.2 Implement shareable trip link generation
+- Create function `generateTripShareLink(tripId)` in utils
+- Link format: `yourapp://trip/{tripId}` (custom scheme or universal link)
+- Store base URL in environment config (e.g., `expo.dev` for Expo preview)
+- Function returns full shareable URL/URI
+
+### 4.3 Configure deep linking in app/_layout.js
+- Add linking config to Expo Router: `linking: { prefixes: ['yourapp://'], config: { ... } }`
+- Add route pattern: `trip/:id` maps to `app/trip/[id].js`
+- Test: sharing link should deep link to trip details screen
+- Non-users who tap link: redirect to signup/signin, then navigate to trip
+
+### 4.4 Add Share API integration
+- Use React Native's built-in `Share` API
+- On share button: call `Share.share({ message: tripShareLink, title: "Check out my trip" })`
+- Allow user to choose share destination (Messages, Email, etc.)
+- Include trip summary in message: origin, destination, date, time
+
+### 4.5 Build trip preview for deep links (P2 enhancement)
+- Create modal/sheet component for shared trips
+- Non-authenticated users see: trip overview, driver profile, book button
+- After signup/signin, can book the trip directly
+- Shows trip details same as authenticated users
+
+### 4.6 Share with emergency contacts (P2)
+- Modify share flow: add "Share with emergency contacts" option
+- When enabled: loop through user's emergency contacts
+- Send notification or SMS with trip link (implement via Cloud Function - P2)
+- Emergency contact can tap link to view trip status (read-only)
+
+### 4.7 Update trip details screen to show share count (optional P2)
+- Track number of times trip was shared in Firestore
+- Show badge: "Shared with 3 people"
+- Just for reference, not critical for MVP
+
+---
+
+## PHASE 5: INTEGRATION & POLISH
+
+### 5.1 Validate all navigation flows
+- Chat creation → messages tab → chat details: all screens load correctly
+- Trip status transitions: all buttons appear/disappear at right times
+- Trip sharing deep links: navigate to trip details and app handles unauth
+- Back button behavior: proper navigation stack management
+
+### 5.2 Implement loading states
+- All thunks set `loading: true` while pending, `false` on completion
+- Show spinners on buttons while updating
+- Disable buttons while loading to prevent double-taps
+- Toast/Alert for success messages
+
+### 5.3 Implement error handling
+- All async operations wrapped in try-catch
+- Dispatch errors to Redux state
+- Show `ErrorAlert` for failures: network, validation, permission errors
+- Log errors to console for debugging
+
+### 5.4 Add offline resilience (P2)
+- Redux persist already caches state locally
+- Show "Offline" indicator when sending message fails
+- Queue messages locally, send when online
+- Trip updates: show "Syncing..." state
+
+### 5.5 Test security rules
+- Attempt unauthorized chat access → Firestore deny
+- Attempt non-driver trip status update → Firestore deny
+- Attempt to modify immutable messages → Firestore deny
+- Deploy rules to production
+
+### 5.6 Test notifications end-to-end
+- Send message → notification appears on other device
+- Update trip status → both parties get notification
+- Tap notification → correct screen opens with correct data
+
+### 5.7 Performance optimization
+- Chat list: add pagination (first 20 chats, load more on scroll)
+- Messages: virtualize long message lists via Gifted Chat `renderListContainer`
+- Real-time listeners: unsubscribe properly in cleanup
+- Images: compress before upload (P3 - for image messages later)
+
+### 5.8 Accessibility audit
+- All buttons have `accessibilityLabel`
+- Colors have sufficient contrast (status badges)
+- Screen readers can navigate chat and trip lists
+
+### 5.9 Update tab bar icons
+- Messages tab: add unread count badge if chats have unread messages
+- Trips tab: add badge for upcoming trips or status changes
+
+---
+
+## Database Schema
+
+### Firestore Collections
+
+#### chats/{chatId}
 ```javascript
-// Hook for chat list
-useEffect(() => {
-  const chatsRef = collection(db, 'chats');
-  const q = query(
-    chatsRef,
-    where('participants', 'array-contains', user.uid),
-    orderBy('updatedAt', 'desc')
-  );
-  
-  const unsubscribe = onSnapshot(q, (snapshot) => {
-    const chats = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-    dispatch(setChats(chats)); // Store in Redux
-  });
-  
-  return () => unsubscribe();
-}, [user.uid, dispatch]);
-```
-
-**Day 2: Individual Chat Screen (8 hours)**
-
-* [ ] Implement [app/chat/[id].js](app/chat/[id].js) with React Native Gifted Chat
-  * [ ] Install dependency: `npm install react-native-gifted-chat`
-  * [ ] Fetch messages from chats/{chatId}/messages subcollection
-  * [ ] Display messages in Gifted Chat format
-  * [ ] Implement send message:
-    * [ ] Add message to subcollection with senderId
-    * [ ] Update parent chat's lastMessage and updatedAt
-    * [ ] Optimistic UI (show message immediately)
-    * [ ] Send notification to other participant
-  * [ ] Mark messages as read when viewed
-  * [ ] Show typing indicators (optional enhancement)
-  * [ ] Display participant info at top (photo, name, rating)
-  * [ ] Add "View Trip" button to navigate to trip details
-  * [ ] Handle empty state (conversation just started)
-  * [ ] Real-time message updates via onSnapshot
-
-**Code Pattern (for reference)**:
-```javascript
-// Message listener
-useEffect(() => {
-  const messagesRef = collection(db, `chats/${chatId}/messages`);
-  const q = query(messagesRef, orderBy('timestamp', 'desc'));
-  
-  const unsubscribe = onSnapshot(q, (snapshot) => {
-    const msgs = snapshot.docs.map(doc => ({
-      _id: doc.id,
-      text: doc.data().text,
-      createdAt: doc.data().timestamp?.toDate(),
-      user: {
-        _id: doc.data().senderId,
-        name: doc.data().senderName,
-        avatar: doc.data().senderPhotoURL,
-      },
-    }));
-    setMessages(msgs);
-  });
-  
-  return () => unsubscribe();
-}, [chatId]);
-
-// Send message
-const onSend = async (newMessages = []) => {
-  const message = newMessages[0];
-  
-  await addDoc(collection(db, `chats/${chatId}/messages`), {
-    text: message.text,
-    senderId: user.uid,
-    senderName: user.displayName,
-    senderPhotoURL: user.photoURL,
-    timestamp: serverTimestamp(),
-    isRead: false,
-  });
-  
-  // Update chat last message
-  await updateDoc(doc(db, 'chats', chatId), {
-    lastMessage: { text: message.text, senderId: user.uid, timestamp: serverTimestamp() },
-    updatedAt: serverTimestamp(),
-  });
-  
-  // Send notification to other participant
-  const chat = await getDoc(doc(db, 'chats', chatId));
-  const otherParticipant = chat.data().participants.find(p => p !== user.uid);
-  await sendNotification(otherParticipant, {
-    type: 'new_message',
-    title: user.displayName,
-    body: message.text,
-    data: { chatId }
-  });
-};
-```
-
-**Firestore Index Needed for Week 6**:
-- Composite: `chats` collection
-  - participants (array-contains)
-  - updatedAt (descending)
-  - Used for: "Show my chats sorted by most recent"
-
----
-
-### Days 3-4: Trip Status Tracking (16 hours)
-
-**Goal**: Allow driver to update trip status, show progress to both parties
-
-#### Trip Status Lifecycle
-
-```
-Week 5: 'confirmed' (trip created, chat available)
-    ↓ (Week 6 Day 3-4)
-'in_progress' (driver starts trip)
-    ↓ (Week 6 Day 3-4)
-'completed' (driver marks complete)
-    ↓ (Week 7: rating & reviews)
-'rated' (both parties rated)
-```
-
-#### Key Design Decisions for Week 6
-
-1. **Who can update status**: Only the driver
-2. **Rider visibility**: Rider sees status changes in real-time (no action buttons)
-3. **Notifications**: Send notification to rider on each status change
-4. **Timeline**: Show history of all status changes
-
-#### Tasks for Days 3-4:
-
-**Day 3: Trip Details Screen - Completion (8 hours)**
-
-* [ ] Expand [app/trip/[id].js](app/trip/[id].js) with status controls
-  * [ ] Show trip status timeline:
-    * [ ] "Confirmed" with timestamp (clickable for context)
-    * [ ] "In Progress" with timestamp (if applicable)
-    * [ ] "Completed" with timestamp (if applicable)
-  * [ ] For DRIVER only:
-    * [ ] "Start Trip" button (visible only if status='confirmed')
-      * [ ] Confirmation dialog: "Are you sure? This will notify the rider."
-      * [ ] On click: Call updateTripStatus thunk
-      * [ ] Loading state during update
-      * [ ] Success feedback (haptic + toast)
-    * [ ] "Complete Trip" button (visible only if status='in_progress')
-      * [ ] Confirmation dialog: "Mark trip as complete?"
-      * [ ] On click: Call updateTripStatus thunk
-      * [ ] Success feedback: Navigate to rating screen (Week 7)
-  * [ ] For RIDER: Show read-only status badges
-  * [ ] Update trip details in real-time (listener on trip document)
-  * [ ] Keep "Message" button visible at all times
-  * [ ] Add "View Location" or "Call Driver" placeholder buttons (Week 7+)
-
-**Day 4: Trip Status Update Backend (8 hours)**
-
-* [ ] Create Redux thunk: `updateTripStatusThunk({tripId, newStatus})`
-  * [ ] Validate user is driver of trip
-  * [ ] Update trip document with new status
-  * [ ] Add entry to statusHistory array with timestamp
-  * [ ] Update timestamps (startedAt, completedAt)
-  * [ ] Send notification to rider with appropriate message
-  * [ ] Handle errors: show user-friendly message
-
-* [ ] Update Firestore transaction in acceptRideRequest (Week 5):
-  * [ ] When creating trip: set initial status='confirmed'
-  * [ ] Initialize statusHistory: [{ status: 'confirmed', timestamp: now }]
-
-**Code Pattern for Status Update**:
-```javascript
-export const updateTripStatusThunk = createAsyncThunk(
-  'trips/updateStatus',
-  async ({ tripId, newStatus }, { rejectWithValue }) => {
-    try {
-      const tripRef = doc(db, 'trips', tripId);
-      const tripDoc = await getDoc(tripRef);
-      const trip = tripDoc.data();
-      
-      // Verify user is driver
-      if (trip.driverId !== auth.currentUser.uid) {
-        throw new Error('Only driver can update trip status');
-      }
-      
-      const updates = {
-        status: newStatus,
-        updatedAt: serverTimestamp(),
-        statusHistory: arrayUnion({
-          status: newStatus,
-          timestamp: new Date().toISOString()
-        })
-      };
-      
-      if (newStatus === 'in_progress') {
-        updates.startedAt = serverTimestamp();
-      } else if (newStatus === 'completed') {
-        updates.completedAt = serverTimestamp();
-      }
-      
-      await updateDoc(tripRef, updates);
-      
-      // Send notification to rider
-      const notificationBody = 
-        newStatus === 'in_progress' ? 'Your trip has started!' :
-        newStatus === 'completed' ? 'Your trip is complete. Please rate your experience.' :
-        'Trip status updated';
-      
-      await sendNotification(trip.riderId, {
-        type: 'trip_status_update',
-        title: 'Trip Update',
-        body: notificationBody,
-        data: { tripId }
-      });
-      
-      return { tripId, ...updates };
-    } catch (error) {
-      return rejectWithValue(error.message);
-    }
-  }
-);
-```
-
-**Firestore Indexes Needed for Week 6**:
-- trips collection:
-  - driverId (for driver to find their trips)
-  - status (for filtering by trip state)
-  - Composite: driverId + status (for "My active trips")
-
----
-
-### Day 5: Trip Share Feature (8 hours)
-
-**Goal**: Allow riders/drivers to share trip info with emergency contacts for safety
-
-#### Design Notes
-
-1. **What gets shared**: Trip ID, driver info, route, ETA, real-time location (future)
-2. **How it's shared**: Deep link that opens in app or web
-3. **Recipient permissions**: Read-only view of trip (no chat access)
-
-#### Tasks for Day 5:
-
-* [ ] Add "Share Trip" button to trip details screen
-  * [ ] Visible to both driver and rider
-  * [ ] Opens native share sheet with pre-filled text
-
-* [ ] Generate shareable link:
-  * [ ] Use `Linking.createURL(/trip/${tripId})`
-  * [ ] Include trip summary in share message
-  * [ ] Example: "Trip: 2pm SFO → Berkeley with John Doe. Track here: [link]"
-
-* [ ] Implement deep linking in [app/_layout.js](app/_layout.js):
-  * [ ] Handle /trip/* routes
-  * [ ] Navigate to trip details screen when link tapped
-  * [ ] Show read-only view for non-participants
-
-* [ ] Store trip in easily shareable format:
-  * [ ] Trip document already has all needed info
-  * [ ] No additional database writes needed
-  * [ ] Just expose via deep link
-
-**Code Pattern for Share**:
-```javascript
-import * as Linking from 'expo-linking';
-import { Share } from 'react-native';
-
-const shareTrip = async (trip) => {
-  const shareURL = Linking.createURL(`/trip/${trip.tripId}`);
-  
-  const message = `
-🚗 Trip Shared
-
-Driver: ${trip.driver.name}
-From: ${trip.pickupLocation.address}
-To: ${trip.dropoffLocation.address}
-Departure: ${formatDateTime(trip.scheduledDepartureTime)}
-
-Track: ${shareURL}
-  `.trim();
-  
-  try {
-    await Share.share({
-      message,
-      url: shareURL,
-      title: 'Trip Details'
-    });
-  } catch (error) {
-    console.error('Error sharing:', error);
-  }
-};
-```
-
-**Firestore Changes**: None required (trip data already structured for sharing)
-
----
-
-## Firestore Rules for Week 6
-
-Update existing rules to allow trip status updates and chat access:
-
-```firestore-rules
-// Trips collection - update rules
-match /trips/{tripId} {
-  // Read access for driver and rider only
-  allow read: if isSignedIn() && 
-                 (request.auth.uid == resource.data.driverId || 
-                  request.auth.uid == resource.data.riderId);
-  
-  // DRIVER only can update trip status, timestamps
-  allow update: if isSignedIn() && 
-                   request.auth.uid == resource.data.driverId &&
-                   // Allow status and statusHistory updates only
-                   request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'statusHistory', 'updatedAt', 'startedAt', 'completedAt']);
-  
-  // No delete allowed
-  allow delete: if false;
+{
+  chatId: "auto-generated",
+  participants: ["driverId", "riderId"],
+  participantDetails: {
+    driverId: { name, photoURL },
+    riderId: { name, photoURL }
+  },
+  rideId: "rideId123",
+  tripId: "tripId456",
+  lastMessage: { 
+    text: "See you at 8am!", 
+    senderId: "userId1", 
+    timestamp: Timestamp 
+  },
+  unreadCount: { 
+    driverId: 0, 
+    riderId: 2 
+  },
+  isActive: true,
+  createdAt: Timestamp,
+  updatedAt: Timestamp
 }
+```
 
-// Chats collection - new
+#### chats/{chatId}/messages/{messageId}
+```javascript
+{
+  messageId: "auto-generated",
+  senderId: "userId1",
+  text: "What time should I pick you up?",
+  timestamp: Timestamp,
+  isRead: false,
+  type: "text" // future: "image"
+}
+```
+
+### Firestore Indexes Required
+
+**Composite Index: chats collection**
+- Collection: `chats`
+- Fields:
+  - `participants` (array-contains)
+  - `updatedAt` (descending)
+- Purpose: Show user's chats sorted by most recent
+
+**Existing in trips collection** (already supports status queries):
+- `status` field exists
+- `statusHistory` array exists
+- No new indexes required
+
+---
+
+## Security Rules Updates
+
+```javascript
+// Add to firestore.rules
+
+// Chats - only participants can access
 match /chats/{chatId} {
-  // Participants can read their chats
-  allow read: if isSignedIn() && 
-                 request.auth.uid in resource.data.participants;
-  
-  // Participants can update (last message, unread count)
-  allow update: if isSignedIn() && 
-                   request.auth.uid in resource.data.participants;
-  
-  // No create/delete (created by backend only)
-  allow create, delete: if false;
-  
-  // Messages subcollection
-  match /messages/{messageId} {
-    // Participants can read
-    allow read: if isSignedIn() && 
-                   request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
-    
-    // Participants can send
-    allow create: if isSignedIn() && 
-                     request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants &&
-                     request.resource.data.senderId == request.auth.uid;
-    
-    // No update/delete on messages (immutable)
-    allow update, delete: if false;
-  }
+  allow read, write: if request.auth != null && 
+    request.auth.uid in resource.data.participants;
+}
+
+// Messages - only participants can read/create, immutable
+match /chats/{chatId}/messages/{messageId} {
+  allow read: if request.auth != null && 
+    request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+  allow create: if request.auth != null && 
+    request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants &&
+    request.resource.data.senderId == request.auth.uid;
+  allow update, delete: if false; // Messages are immutable
+}
+
+// Update trips rule - allow driver to update status only
+match /trips/{tripId} {
+  allow read: if request.auth != null && 
+    (request.auth.uid == resource.data.driverId || request.auth.uid == resource.data.riderId);
+  allow update: if request.auth != null && 
+    request.auth.uid == resource.data.driverId &&
+    // Only allow updating specific fields
+    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'statusHistory', 'startedAt', 'completedAt', 'updatedAt']);
+  allow create, delete: if false; // Trips created via acceptRequest, never deleted
 }
 ```
 
 ---
 
-## Redux State Structure for Week 6
+## Dependencies to Install
 
-**tripsSlice updates**:
-```javascript
-{
-  myTrips: [], // All trips (as driver or rider)
-  selectedTrip: null, // Currently viewed trip
-  tripStatus: {}, // { tripId: { status, statusHistory, loading } }
-  loading: false,
-  error: null,
-}
+```bash
+npm install react-native-gifted-chat
 ```
 
-**New chatsSlice**:
-```javascript
-{
-  chats: [], // List of all chats
-  selectedChat: null, // Currently open chat
-  messages: [], // Messages in selected chat
-  messageLoading: false,
-  unreadCounts: {}, // { chatId: count }
-  error: null,
-}
-```
+**Verification**: Check compatibility with Expo SDK version in package.json
 
 ---
 
-## Testing Checklist for Week 6
+## Testing Checklist
 
-### Chat Functionality
-- [ ] Chat list appears after trip confirmed
-- [ ] Messages send in real-time
-- [ ] Received messages appear instantly
-- [ ] Unread count increments
-- [ ] Mark as read (if implemented)
-- [ ] Participant info displays correctly
-- [ ] View Trip button navigates correctly
-- [ ] Empty state shows when no messages
+### Phase 2 - Messaging
+- [ ] Create chat when trip confirmed
+- [ ] Send message appears in both devices
+- [ ] Messages sync in real-time
+- [ ] Unread count updates correctly
+- [ ] Notification received when message sent
+- [ ] Tap notification opens correct chat
+- [ ] Chat list shows most recent first
+- [ ] Empty state displays when no chats
 
-### Trip Status Updates
-- [ ] Driver sees "Start Trip" button on confirmed trip
-- [ ] Clicking "Start Trip" updates status in Firestore
-- [ ] Rider sees status change in real-time
-- [ ] Notification sent to rider on status change
-- [ ] Status timeline displays all transitions
-- [ ] Only driver can update status (verify security)
-- [ ] Timestamps recorded correctly
-- [ ] "Complete Trip" button appears after trip started
+### Phase 3 - Trip Status
+- [ ] Driver can start trip (Confirmed → InProgress)
+- [ ] Driver can complete trip (InProgress → Completed)
+- [ ] Rider receives notifications for status changes
+- [ ] Status timeline displays correctly
+- [ ] Cancel trip works with time buffer
+- [ ] Trip reminders sent at 24h and 2h
+- [ ] My Trips shows correct status grouping
+- [ ] Non-driver cannot update status (security rule)
 
-### Trip Sharing
-- [ ] Share button appears on trip details
-- [ ] Tapping share opens native sheet
-- [ ] Deep link format is correct
-- [ ] Link opens in app and shows trip details
-- [ ] Non-participants see read-only view
+### Phase 4 - Sharing
+- [ ] Share button generates correct deep link
+- [ ] Deep link opens trip details when tapped
+- [ ] Share sheet appears with trip info
+- [ ] Unauthenticated user redirected to signin
+- [ ] After signin, navigates to shared trip
 
-### Edge Cases
-- [ ] No internet during message send (queue and retry)
-- [ ] Chat loads with 100+ messages (pagination)
-- [ ] Delete trip while chat active (handle gracefully)
-- [ ] Blocked users can't message (Week 7)
-- [ ] Trip with no messages shows empty state
+### Phase 5 - Integration
+- [ ] All navigation flows work end-to-end
+- [ ] Loading states display correctly
+- [ ] Error alerts show on failures
+- [ ] Security rules block unauthorized access
+- [ ] Notifications work end-to-end
+- [ ] Performance acceptable with 50+ messages
+- [ ] Accessibility labels present
 
 ---
 
 ## Technical Debt & Future Enhancements
 
-### P2 Features (Nice-to-have, defer to Week 7+)
+### P2 Features (Post-Week 6)
+- Typing indicators in chat
+- Image messages with compression
+- Real-time location sharing during trip
+- Message search functionality
+- Chat archiving for old trips
+- Trip preview modal for shared links
+- Share with emergency contacts via SMS
+- Online/offline status indicators
 
-1. **Typing Indicators**
-   - Show "John is typing..." in chat
-   - Implementation: Temporary 'typingUsers' array in chat document
-
-2. **Message Images**
-   - Send photos in chat
-   - Requires Firebase Storage integration
-   - Update message schema: `{ type: 'image', imageURL, ... }`
-
-3. **Read Receipts**
-   - Show "Delivered" and "Read" status
-   - Add `isRead`, `readAt` to messages
-
-4. **Trip Location Sharing**
-   - Real-time driver location in chat screen
-   - Requires location permissions and background tracking
-   - P3 (safety feature, complex implementation)
-
-5. **Call Integration**
-   - Phone call button in chat
-   - Requires Twilio or similar VoIP
-   - P3 (future phase)
-
-### Known Limitations for MVP
-
-1. **No message search** - Week 8+
-2. **No message deletion** - Week 8+
-3. **No group chats** - Out of scope (1-to-1 only)
-4. **No message timestamps in list** - Show relative time (Week 7 polish)
-5. **No notification badges on Messages tab** - Week 7 enhancement
+### P3 Features (Later)
+- Voice messages
+- Message reactions/emojis
+- Trip rating system
+- Review system
+- In-app payment integration
 
 ---
 
-## Dependency Map: What Blocks Week 6
+## Implementation Timeline
 
-```
-Week 5 Complete
-├─ Push Notification System ✅ (CRITICAL BLOCKER)
-├─ Trip Creation with Chat Setup ✅
-├─ Pickup/Dropoff Locations Stored ✅
-└─ Trip Details Foundation ✅
+| Day | Phase | Tasks | Hours |
+|-----|-------|-------|-------|
+| 1 | Phase 1 & 2.1-2.3 | Redux setup, Firestore ops, chat screen basics | 8h |
+| 2 | Phase 2.4-2.9 | Complete messaging UI, notifications, integration | 8h |
+| 3 | Phase 3.1-3.5 | Trip status backend, UI controls | 8h |
+| 4 | Phase 3.6-3.10 | Rider confirmation, notifications, reminders | 8h |
+| 5 | Phase 4 & 5 | Trip sharing, deep links, polish & testing | 8h |
 
-Then Week 6 Can Proceed
-├─ Day 1-2: Messages Tab & Chat Screen
-├─ Day 3-4: Trip Status Updates
-└─ Day 5: Trip Sharing
-```
-
-**What CANNOT be done in Week 6 (Week 7+ scope)**:
-- Rating and reviews (requires trip completion triggers)
-- Trip reminders (requires Cloud Scheduler)
-- Advanced blocking (requires safety features)
+**Total**: 40 hours
 
 ---
 
-## Success Criteria for Week 6 Completion
+## Success Criteria
 
-- [ ] All messages send and receive in real-time
-- [ ] Driver can start and complete trips
-- [ ] Rider receives instant notifications of status changes
-- [ ] Trip can be shared via deep link
-- [ ] Firestore rules properly restrict access
-- [ ] No lint errors: `npm run lint` passes
-- [ ] End-to-end test: Message exchange → Status update → Completion
-- [ ] Performance: <200ms message send latency
-- [ ] Code quality: All async operations have proper error handling
-
----
-
-## Estimated Time Breakdown
-
-- Days 1-2: Messages Tab (8h) + Chat Screen (8h) = 16 hours
-- Day 3: Trip Details Expansion (8h) = 8 hours  
-- Day 4: Status Update Backend (8h) = 8 hours
-- Day 5: Trip Share Feature (8h) = 8 hours
-- **Buffer**: 0 hours (front-loaded in Week 5)
-
-**Total**: 40 hours (on track for week)
+✅ Users can chat in real-time after trip confirmation  
+✅ Message notifications work on both iOS/Android  
+✅ Driver can start and complete trips with button taps  
+✅ Rider receives notifications for all status changes  
+✅ Trip sharing generates working deep links  
+✅ All security rules properly restrict access  
+✅ No crashes or major bugs in core flows  
+✅ Performance acceptable with typical data loads
 
 ---
 
-## Week 6 Dependencies Summary
+## Notes
 
-**FROM Week 5 (MUST COMPLETE)**:
-1. ✅ Push notification system (FCM + Expo + Cloud Function)
-2. ✅ Trip details screen foundation with "Message" button
-3. ✅ Pickup/dropoff locations in request and trip documents
-4. ✅ Max detour selection in ride creation (Miles only for MVP)
-
-**Week 6 DELIVERABLES**:
-1. ✅ Messages tab showing all chats
-2. ✅ Chat screen with real-time messaging
-3. ✅ Trip status tracking (Confirmed → In Progress → Completed)
-4. ✅ Deep-linkable trip sharing
-
-**Blocking Week 7 (NOT in scope)**:
-1. ⏸️ Post-trip rating system
-2. ⏸️ Trip reminders (24h, 2h before)
-3. ⏸️ Advanced user blocking logic
+- All features build on Week 5 infrastructure (notifications, trips, real-time listeners)
+- No paid services required (using Expo's free FCM integration)
+- Follows established patterns: Redux thunks, Firestore operations, component structure
+- Security-first approach: validate on both client and Firestore rules
+- Incremental implementation: each step can be tested before moving forward
+- MVP focused: defer P2/P3 features to maintain timeline
 
 ---
 
-**Document Status**: Complete and ready for Week 6 implementation  
-**Last Updated**: December 30, 2025
+**Document Version**: 1.0  
+**Last Updated**: December 31, 2025

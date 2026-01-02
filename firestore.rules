@@ -99,14 +99,63 @@ service cloud.firestore {
       // Trip creation is allowed by backend (driver accepting request)
       allow create: if isSignedIn();
       
-      // Trips cannot be updated or deleted by users (immutable records)
-      allow update: if false;
+      // Allow driver to update status, statusHistory, and timestamp fields only
+      allow update: if isSignedIn() && 
+                       request.auth.uid == resource.data.driverId &&
+                       request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['status', 'statusHistory', 'startedAt', 'completedAt', 'updatedAt']);
+      
+      // Allow rider to confirm trip completion (only riderConfirmedCompletion, riderConfirmedAt, updatedAt)
+      allow update: if isSignedIn() && 
+                       request.auth.uid == resource.data.riderId &&
+                       request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['riderConfirmedCompletion', 'riderConfirmedAt', 'updatedAt']);
+      
+      // Trips cannot be deleted by users
       allow delete: if false;
     }
 
+    // Chats collection - messaging between driver and rider
+    match /chats/{chatId} {
+      // Only participants can read the chat
+      allow read: if isSignedIn() && 
+                     request.auth.uid in resource.data.participants;
+      
+      // Chats are created by backend when trip is confirmed
+      allow create: if isSignedIn();
+      
+      // Participants can update lastMessage and unreadCount
+      allow update: if isSignedIn() && 
+                       request.auth.uid in resource.data.participants;
+      
+      // Chats cannot be deleted
+      allow delete: if false;
+      
+      // Messages subcollection
+      match /messages/{messageId} {
+        // Only chat participants can read messages
+        allow read: if isSignedIn() && 
+                       request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        
+        // Only chat participants can send messages, and senderId must match auth.uid
+        allow create: if isSignedIn() && 
+                         request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants &&
+                         request.resource.data.senderId == request.auth.uid;
+        
+        // Allow participants to update isRead status
+        allow update: if isSignedIn() && 
+                         request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        
+        // Messages cannot be deleted (immutable)
+        allow delete: if false;
+      }
+    }
+
     // Push tokens collection - users manage their own device tokens
+    // Any authenticated user can read tokens (to send notifications)
+    // But can only modify their own
     match /pushTokens/{userId} {
-      allow read: if isSignedIn() && isOwner(userId);
+      allow read: if isSignedIn();
       allow create, update: if isSignedIn() && isOwner(userId);
       allow delete: if isSignedIn() && isOwner(userId);
     }
