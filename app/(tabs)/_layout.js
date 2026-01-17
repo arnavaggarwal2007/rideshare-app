@@ -3,13 +3,24 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Lato_400Regular, useFonts as useLatoFonts } from '@expo-google-fonts/lato';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Tabs } from 'expo-router';
+import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
 
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const activeTintColor = '#FFFFFF';
   const inactiveTintColor = '#A3C7E8';
+  
+  const user = useSelector((state) => state.auth.user);
+  const chats = useSelector((state) => state.chats.chats);
+  
+  // Calculate total unread messages across all chats
+  const totalUnread = chats.reduce((total, chat) => {
+    const unreadCount = chat.unreadCount?.[user?.uid] || 0;
+    return total + unreadCount;
+  }, 0);
 
   const [fontsLoaded] = useLatoFonts({
     Lato_400Regular,
@@ -98,7 +109,16 @@ export default function TabsLayout() {
         options={{
           title: 'Messages',
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="forum" color={color} size={size} />
+            <View style={styles.iconContainer}>
+              <MaterialIcons name="forum" color={color} size={size} />
+              {totalUnread > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>
+                    {totalUnread > 9 ? '9+' : totalUnread}
+                  </Text>
+                </View>
+              )}
+            </View>
           ),
         }}
       />
@@ -114,3 +134,33 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  iconContainer: {
+    position: 'relative',
+    width: 28,
+    height: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  badge: {
+    position: 'absolute',
+    top: -6,
+    right: -8,
+    backgroundColor: '#FF3B30',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: '#2774AE',
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+});

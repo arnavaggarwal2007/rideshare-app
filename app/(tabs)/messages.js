@@ -2,7 +2,7 @@ import { Lato_400Regular } from '@expo-google-fonts/lato';
 import { Montserrat_700Bold, useFonts } from '@expo-google-fonts/montserrat';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     FlatList,
@@ -23,6 +23,24 @@ export default function MessagesScreen() {
   const dispatch = useDispatch();
   const user = useSelector((state) => state.auth.user);
   const chats = useSelector((state) => state.chats.chats);
+  const { blockedUsers } = useSelector((state) => state.safety);
+  
+  // Sort chats: non-blocked first, then blocked at bottom
+  const sortedChats = useMemo(() => {
+    if (!chats || !user) return [];
+    
+    return [...chats].sort((a, b) => {
+      const aOtherParticipant = a.participants.find(p => p !== user.uid);
+      const bOtherParticipant = b.participants.find(p => p !== user.uid);
+      const aIsBlocked = blockedUsers?.includes(aOtherParticipant);
+      const bIsBlocked = blockedUsers?.includes(bOtherParticipant);
+      
+      // Non-blocked chats come first
+      if (aIsBlocked && !bIsBlocked) return 1;
+      if (!aIsBlocked && bIsBlocked) return -1;
+      return 0; // Keep original order for same blocked status
+    });
+  }, [chats, blockedUsers, user]);
   
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -86,13 +104,16 @@ export default function MessagesScreen() {
     const otherParticipantId = item.participants.find((p) => p !== user?.uid);
     const otherParticipant = item.participantDetails?.[otherParticipantId];
     
+    // Check if other participant is blocked
+    const isBlocked = blockedUsers?.includes(otherParticipantId);
+    
     // Get unread count for current user
     const unreadCount = item.unreadCount?.[user?.uid] || 0;
-    const hasUnread = unreadCount > 0;
+    const hasUnread = unreadCount > 0 && !isBlocked;
 
     return (
       <TouchableOpacity 
-        style={styles.chatItem} 
+        style={[styles.chatItem, isBlocked && styles.chatItemBlocked]} 
         onPress={() => handleChatPress(item)}
         activeOpacity={0.6}
       >
@@ -100,30 +121,37 @@ export default function MessagesScreen() {
           {otherParticipant?.photoURL ? (
             <Image
               source={{ uri: otherParticipant.photoURL }}
-              style={styles.avatar}
+              style={[styles.avatar, isBlocked && styles.avatarBlocked]}
             />
           ) : (
-            <View style={[styles.avatar, styles.avatarPlaceholder]}>
-              <Ionicons name="person" size={20} color="#fff" />
+            <View style={[styles.avatar, styles.avatarPlaceholder, isBlocked && styles.avatarBlocked]}>
+              <Ionicons name={isBlocked ? "ban-outline" : "person"} size={20} color="#fff" />
             </View>
           )}
         </View>
 
         <View style={styles.chatCenter}>
-          <ThemedText style={[styles.chatName, hasUnread && styles.unreadText]}>
-            {otherParticipant?.name || 'Unknown'}
-          </ThemedText>
+          <View style={styles.chatNameRow}>
+            <ThemedText style={[styles.chatName, hasUnread && styles.unreadText, isBlocked && styles.blockedText]}>
+              {otherParticipant?.name || 'Unknown'}
+            </ThemedText>
+            {isBlocked && (
+              <View style={styles.blockedBadge}>
+                <Text style={styles.blockedBadgeText}>Blocked</Text>
+              </View>
+            )}
+          </View>
           <Text 
             numberOfLines={1} 
-            style={[styles.lastMessage, hasUnread && styles.unreadMessage]}
+            style={[styles.lastMessage, hasUnread && styles.unreadMessage, isBlocked && styles.blockedMessage]}
           >
-            {item.lastMessage?.text || 'No messages yet'}
+            {isBlocked ? 'User blocked' : (item.lastMessage || 'No messages yet')}
           </Text>
         </View>
 
         <View style={styles.chatRight}>
-          <ThemedText style={styles.timestamp}>
-            {formatTime(item.updatedAt)}
+          <ThemedText style={[styles.timestamp, isBlocked && styles.blockedText]}>
+            {formatTime(item.lastMessageTimestamp)}
           </ThemedText>
           {hasUnread && (
             <View style={styles.unreadBadge}>
@@ -163,11 +191,11 @@ export default function MessagesScreen() {
       <View style={styles.header}>
         <ThemedText style={styles.headerTitle}>Messages</ThemedText>
       </View>
-      {chats.length === 0 ? (
+      {sortedChats.length === 0 ? (
         renderEmptyState()
       ) : (
         <FlatList
-          data={chats}
+          data={sortedChats}
           renderItem={renderChatItem}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContainer}
@@ -216,6 +244,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
   },
+  chatItemBlocked: {
+    backgroundColor: '#F9F9F9',
+    opacity: 0.8,
+  },
   chatLeft: {
     marginRight: 12,
   },
@@ -230,15 +262,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#2774AE',
   },
+  avatarBlocked: {
+    backgroundColor: '#9CA3AF',
+  },
   chatCenter: {
     flex: 1,
+  },
+  chatNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
   },
   chatName: {
     fontSize: 16,
     fontWeight: '600',
     fontFamily: 'Lato_400Regular',
-    marginBottom: 4,
     color: '#1A1A1A',
+  },
+  blockedBadge: {
+    backgroundColor: '#FFEBEE',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  blockedBadgeText: {
+    fontSize: 10,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#D32F2F',
+    textTransform: 'uppercase',
   },
   lastMessage: {
     fontSize: 14,
@@ -252,6 +304,13 @@ const styles = StyleSheet.create({
   unreadMessage: {
     fontWeight: '600',
     color: '#1A1A1A',
+  },
+  blockedText: {
+    color: '#9CA3AF',
+  },
+  blockedMessage: {
+    fontStyle: 'italic',
+    color: '#9CA3AF',
   },
   chatRight: {
     alignItems: 'flex-end',

@@ -1,10 +1,15 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
 import React, { useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, Text, View } from 'react-native';
 import { Provider, useDispatch, useSelector } from 'react-redux';
 import ErrorAlert from '../components/ErrorAlert';
+import {
+    clearBadgeCount,
+    createNotificationResponseListener,
+} from '../services/notifications/notificationHandler';
 import { registerForPushNotificationsAsync } from '../services/notifications/pushNotifications';
 import { setError, setUserProfile } from '../store/slices/authSlice';
+import { fetchBlockedUsersThunk } from '../store/slices/safetySlice';
 
 /**
  * GLOBAL NAVIGATION GUARD DESIGN (Phase 0)
@@ -71,6 +76,34 @@ function RootLayoutInner() {
       console.warn('[notifications] Registration failed', err?.message || err);
     });
   }, [user?.uid]);
+
+  // Fetch blocked users when user is authenticated
+  React.useEffect(() => {
+    if (!user?.uid) return;
+
+    dispatch(fetchBlockedUsersThunk({ userId: user.uid }));
+  }, [user?.uid, dispatch]);
+
+  // Clear badge count when app becomes active
+  React.useEffect(() => {
+    const handleAppStateChange = (nextAppState) => {
+      if (nextAppState === 'active') {
+        clearBadgeCount();
+      }
+    };
+
+    // Clear badge on initial mount
+    clearBadgeCount();
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription?.remove();
+  }, []);
+
+  // Handle notification response (tap) - uses consolidated handler for all notification types
+  React.useEffect(() => {
+    const subscription = createNotificationResponseListener(router);
+    return () => subscription.remove();
+  }, [router]);
 
   // Allow navigation/guard logic when loading is false
   const guardReady = !loading;

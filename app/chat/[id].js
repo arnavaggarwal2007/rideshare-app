@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { GiftedChat } from 'react-native-gifted-chat';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
@@ -112,6 +112,7 @@ export default function ChatScreen() {
   const [error, setError] = useState(null);
   const [otherParticipant, setOtherParticipant] = useState(null);
   const [tripData, setTripData] = useState(null);
+  const [showInfoModal, setShowInfoModal] = useState(false);
 
   useEffect(() => {
     if (!chatId || !user) return;
@@ -130,7 +131,10 @@ export default function ChatScreen() {
         // Determine other participant
         const otherUserId = chat.participants.find(p => p !== user.uid);
         if (otherUserId && chat.participantDetails) {
-          setOtherParticipant(chat.participantDetails[otherUserId]);
+          setOtherParticipant({
+            ...chat.participantDetails[otherUserId],
+            uid: otherUserId  // Ensure uid is included
+          });
         }
 
         // Load trip data if tripId exists
@@ -435,14 +439,12 @@ export default function ChatScreen() {
           <TouchableOpacity style={styles.headerButton} disabled>
             <Ionicons name="videocam-outline" size={24} color="#2774AE" />
           </TouchableOpacity>
-          {tripData && (
-            <TouchableOpacity 
-              style={styles.headerButton}
-              onPress={() => router.push(`/trip/${tripData.id}`)}
-            >
-              <Ionicons name="information-circle-outline" size={24} color="#2774AE" />
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity 
+            style={styles.headerButton}
+            onPress={() => setShowInfoModal(true)}
+          >
+            <Ionicons name="information-circle-outline" size={24} color="#2774AE" />
+          </TouchableOpacity>
         </View>
       </View>
       <KeyboardAvoidingView
@@ -500,6 +502,59 @@ export default function ChatScreen() {
           messagesContainerStyle={styles.messagesContainer}
         />
       </KeyboardAvoidingView>
+
+      {/* Info Modal */}
+      <Modal
+        visible={showInfoModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowInfoModal(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowInfoModal(false)}
+        >
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Chat Information</Text>
+            
+            {otherParticipant && (
+              <TouchableOpacity 
+                style={styles.modalOption}
+                onPress={() => {
+                  setShowInfoModal(false);
+                  router.push(`/user/${otherParticipant.uid}`);
+                }}
+              >
+                <Ionicons name="person-outline" size={24} color="#2774AE" />
+                <Text style={styles.modalOptionText}>View {otherParticipant.name}&apos;s Profile</Text>
+                <Ionicons name="chevron-forward" size={20} color="#999" />
+              </TouchableOpacity>
+            )}
+            
+            {tripData && (
+              <TouchableOpacity 
+                style={styles.modalOption}
+                onPress={() => {
+                  setShowInfoModal(false);
+                  router.push(`/trip/${tripData.id}`);
+                }}
+              >
+                <Ionicons name="car-outline" size={24} color="#2774AE" />
+                <Text style={styles.modalOptionText}>View Trip Details</Text>
+                <Ionicons name="chevron-forward" size={20} color="#999" />
+              </TouchableOpacity>
+            )}
+            
+            <TouchableOpacity 
+              style={styles.modalCancelButton}
+              onPress={() => setShowInfoModal(false)}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -671,5 +726,59 @@ const styles = StyleSheet.create({
   headerButton: {
     marginLeft: 12,
     padding: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    fontFamily: 'Montserrat_700Bold',
+    color: '#1a1a1a',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    marginBottom: 12,
+    gap: 12,
+  },
+  modalOptionText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
+    fontFamily: 'Lato_400Regular',
+    color: '#1a1a1a',
+  },
+  modalCancelButton: {
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  modalCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: 'Lato_400Regular',
+    color: '#666',
   },
 });

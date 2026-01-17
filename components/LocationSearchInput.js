@@ -37,12 +37,22 @@ export default function LocationSearchInput({
     setResults([]);
     try {
       const searchResults = await searchAddress(query);
-      setResults(searchResults);
-      if (searchResults.length === 0) {
-        setError('No results found.');
+      
+      // Handle error response from geocoding service
+      if (searchResults && searchResults.error) {
+        setError(searchResults.error);
+        setResults([]);
+        return;
+      }
+      
+      // Handle normal results array
+      const resultsArray = Array.isArray(searchResults) ? searchResults : [];
+      setResults(resultsArray);
+      if (resultsArray.length === 0) {
+        setError('No results found. Try a different search term.');
       }
     } catch (_err) {
-      setError('Search failed.');
+      setError('Search failed. Please try again.');
     } finally {
       setIsSearching(false);
     }
@@ -56,6 +66,7 @@ export default function LocationSearchInput({
   };
 
   // Update query when location prop changes externally
+  // Intentional: only react to external location prop changes; ignore query to avoid loops
   React.useEffect(() => {
     if (location?.address && location.address !== query) {
       setQuery(location.address);

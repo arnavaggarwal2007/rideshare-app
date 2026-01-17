@@ -3,7 +3,7 @@ import { Montserrat_700Bold } from '@expo-google-fonts/montserrat';
 import { Ionicons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
 import { router } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
@@ -18,6 +18,16 @@ export default function HomeScreen() {
   });
 
   const { items, loading, refreshing, error, hasMore, filters } = useSelector(state => state.feed);
+  const { blockedUsers } = useSelector(state => state.safety);
+  
+  // Filter out rides from blocked users
+  const filteredItems = useMemo(() => {
+    if (!blockedUsers || blockedUsers.length === 0) {
+      return items;
+    }
+    return items.filter(item => !blockedUsers.includes(item.driverId));
+  }, [items, blockedUsers]);
+  
   const [showFilters, setShowFilters] = useState(false);
   const [searchStartLocation, setSearchStartLocation] = useState('');
   const [searchEndLocation, setSearchEndLocation] = useState('');
@@ -243,7 +253,7 @@ export default function HomeScreen() {
   };
 
   const renderEmptyState = () => {
-    if (loading && items.length === 0) {
+    if (loading && filteredItems.length === 0) {
       // Show skeleton items during initial load
       return (
         <>
@@ -295,7 +305,7 @@ export default function HomeScreen() {
   };
 
   const renderFooter = () => {
-    if (!loading || items.length === 0) return null;
+    if (!loading || filteredItems.length === 0) return null;
     
     return (
       <View style={styles.footerLoader}>
@@ -431,16 +441,16 @@ export default function HomeScreen() {
         )}
       </View>
 
-      {error && items.length === 0 ? (
+      {error && filteredItems.length === 0 ? (
         renderErrorState()
       ) : (
         <FlatList
-          data={items}
+          data={filteredItems}
           renderItem={renderRideItem}
           keyExtractor={(item) => item.id}
           contentContainerStyle={[
             styles.listContainer,
-            items.length === 0 && styles.listContainerEmpty
+            filteredItems.length === 0 && styles.listContainerEmpty
           ]}
           ListEmptyComponent={renderEmptyState}
           ListFooterComponent={renderFooter}

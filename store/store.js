@@ -25,7 +25,9 @@ import authReducer from './slices/authSlice';
 import chatsReducer from './slices/chatsSlice';
 import feedReducer from './slices/feedSlice';
 import requestsReducer from './slices/requestsSlice';
+import reviewsReducer from './slices/reviewsSlice';
 import ridesReducer from './slices/ridesSlice';
+import safetyReducer from './slices/safetySlice';
 import tripsReducer from './slices/tripsSlice';
 
 const persistConfig = {
@@ -38,7 +40,9 @@ const rootReducer = combineReducers({
 	auth: authReducer,
 	chats: chatsReducer,
 	feed: feedReducer,
+	reviews: reviewsReducer,
 	rides: ridesReducer,
+	safety: safetyReducer,
 	trips: tripsReducer,
 	requests: requestsReducer,
 });

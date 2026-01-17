@@ -5,14 +5,18 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { savePushToken } from './pushTokens';
 
-// Show alerts by default; silent for sound/badge to avoid surprise behavior
+/**
+ * Configure foreground notification handling
+ * Shows alerts, plays sounds, and sets badges when notifications arrive
+ * while the app is in the foreground
+ */
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    // iOS foreground presentation; replaces deprecated shouldShowAlert
+    // iOS foreground presentation options
     shouldShowBanner: true,
     shouldShowList: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
   }),
 });
 

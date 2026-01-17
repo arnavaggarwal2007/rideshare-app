@@ -537,7 +537,7 @@ const styles = StyleSheet.create({
         color: '#2774AE',
         textAlign: 'center',
         marginBottom: 32,
-        fontFamily: 'Lato-400Regular',
+        fontFamily: 'Lato_400Regular',
     },
     inputGroup: {
         marginBottom: 20,

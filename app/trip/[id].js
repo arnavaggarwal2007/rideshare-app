@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, ScrollView, Share, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
@@ -420,34 +420,42 @@ export default function TripDetailsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView edges={['top', 'left', 'right', 'bottom']} style={styles.safeArea}>
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#2774AE" />
-          <ThemedText style={styles.loadingText}>Loading trip details...</ThemedText>
-        </View>
-      </SafeAreaView>
+      <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        <SafeAreaView edges={['top', 'left', 'right', 'bottom']} style={styles.safeArea}>
+          <View style={styles.centerContainer}>
+            <ActivityIndicator size="large" color="#2774AE" />
+            <ThemedText style={styles.loadingText}>Loading trip details...</ThemedText>
+          </View>
+        </SafeAreaView>
+      </View>
     );
   }
 
   if (error || !trip) {
     return (
-      <SafeAreaView edges={['top', 'left', 'right', 'bottom']} style={styles.safeArea}>
-        <View style={styles.container}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <ThemedText style={styles.backButtonText}>← Back</ThemedText>
-          </TouchableOpacity>
-          <ThemedText style={styles.error}>{error || 'Trip not found.'}</ThemedText>
-        </View>
-      </SafeAreaView>
+      <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        <SafeAreaView edges={['top', 'left', 'right', 'bottom']} style={styles.safeArea}>
+          <View style={styles.container}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <ThemedText style={styles.backButtonText}>← Back</ThemedText>
+            </TouchableOpacity>
+            <ThemedText style={styles.error}>{error || 'Trip not found.'}</ThemedText>
+          </View>
+        </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView edges={['top', 'left', 'right', 'bottom']} style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ThemedText style={styles.backButtonText}>← Back</ThemedText>
-        </TouchableOpacity>
+    <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <SafeAreaView edges={['top', 'left', 'right', 'bottom']} style={styles.safeArea}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <ThemedText style={styles.backButtonText}>← Back</ThemedText>
+          </TouchableOpacity>
         <ThemedText style={styles.headerTitle}>Trip Details</ThemedText>
       </View>
       <ScrollView contentContainerStyle={styles.container}>
@@ -784,6 +792,20 @@ export default function TripDetailsScreen() {
             )}
           </TouchableOpacity>
         )}
+
+        {/* Rate Trip Button - Show for completed trips if user hasn't rated yet */}
+        {trip.status === 'completed' && (
+          (trip.driverId === user?.uid && !trip.isRatedByDriver) ||
+          (trip.riderId === user?.uid && !trip.isRatedByRider)
+        ) && (
+          <TouchableOpacity 
+            style={[styles.actionButton, styles.rateButton]} 
+            onPress={() => router.push(`/rating/${trip.id}`)}
+          >
+            <Ionicons name="star" size={20} color="#FFFFFF" />
+            <Text style={styles.actionButtonText}>Rate Trip</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
       {/* Cancel Trip Modal - Cross-platform alternative to Alert.prompt */}
@@ -825,14 +847,15 @@ export default function TripDetailsScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F7F9FB',
+    backgroundColor: '#FFFFFF',
   },
   header: {
     flexDirection: 'row',
@@ -1121,6 +1144,9 @@ const styles = StyleSheet.create({
   },
   shareButton: {
     backgroundColor: '#00897B',
+  },
+  rateButton: {
+    backgroundColor: '#FFB300',
   },
   actionButtonText: {
     color: '#FFFFFF',

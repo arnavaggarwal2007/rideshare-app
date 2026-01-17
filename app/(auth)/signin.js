@@ -6,15 +6,15 @@ import { useRouter } from 'expo-router';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useState } from 'react';
 import {
-    ActivityIndicator,
-    Keyboard,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View,
+  ActivityIndicator,
+  Keyboard,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
 } from 'react-native';
 import { auth } from '../../firebaseConfig';
 
@@ -95,7 +95,7 @@ export default function SignInScreen() {
           <TextInput
             style={styles.input}
             placeholder="your@email.com"
-            placeholderTextColor="#1A1A1A"
+            placeholderTextColor="#48494B"
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
