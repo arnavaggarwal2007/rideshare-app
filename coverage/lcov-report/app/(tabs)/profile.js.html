@@ -438,7 +438,13 @@
 <a name='L373'></a><a href='#L373'>373</a>
 <a name='L374'></a><a href='#L374'>374</a>
 <a name='L375'></a><a href='#L375'>375</a>
-<a name='L376'></a><a href='#L376'>376</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L376'></a><a href='#L376'>376</a>
+<a name='L377'></a><a href='#L377'>377</a>
+<a name='L378'></a><a href='#L378'>378</a>
+<a name='L379'></a><a href='#L379'>379</a>
+<a name='L380'></a><a href='#L380'>380</a>
+<a name='L381'></a><a href='#L381'>381</a>
+<a name='L382'></a><a href='#L382'>382</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -499,7 +505,12 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">22x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -634,6 +645,7 @@
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -821,7 +833,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { signOut } from 'firebase/auth';
 import { useCallback } from 'react';
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import ReviewCard from '../../components/ReviewCard';
@@ -863,20 +875,25 @@ export default function ProfileScreen() {
   <span class="missing-if-branch" title="if path not taken" >I</span>if (!fontsLoaded) <span class="cstat-no" title="statement not covered" >return null;</span>
   if (loading) {
     return (
-      &lt;SafeAreaView style={{ flex: 1, backgroundColor: '#F7F9FB' }}&gt;
-        &lt;View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F7F9FB' }}&gt;
-          &lt;ActivityIndicator size="large" color="#2774AE" /&gt;
-          &lt;Text style={{ marginTop: 16, fontSize: 16, color: '#2774AE', textAlign: 'center', fontFamily: 'Montserrat_700Bold', fontWeight: 'bold' }}&gt;
-            Loading your profile...
-          &lt;/Text&gt;
-        &lt;/View&gt;
-      &lt;/SafeAreaView&gt;
+      &lt;View style={{ flex: 1, backgroundColor: '#F7F9FB' }}&gt;
+        &lt;StatusBar barStyle="dark-content" backgroundColor="#F7F9FB" /&gt;
+        &lt;SafeAreaView style={{ flex: 1, backgroundColor: '#F7F9FB' }}&gt;
+          &lt;View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F7F9FB' }}&gt;
+            &lt;ActivityIndicator size="large" color="#2774AE" /&gt;
+            &lt;Text style={{ marginTop: 16, fontSize: 16, color: '#2774AE', textAlign: 'center', fontFamily: 'Montserrat_700Bold', fontWeight: 'bold' }}&gt;
+              Loading your profile...
+            &lt;/Text&gt;
+          &lt;/View&gt;
+        &lt;/SafeAreaView&gt;
+      &lt;/View&gt;
     );
   }
 &nbsp;
   return (
-    &lt;SafeAreaView style={{ flex: 1, backgroundColor: '#F7F9FB' }}&gt;
-      &lt;ScrollView contentContainerStyle={styles.container}&gt;
+    &lt;View style={{ flex: 1, backgroundColor: '#F7F9FB' }}&gt;
+      &lt;StatusBar barStyle="dark-content" backgroundColor="#F7F9FB" /&gt;
+      &lt;SafeAreaView style={{ flex: 1, backgroundColor: '#F7F9FB' }}&gt;
+        &lt;ScrollView contentContainerStyle={styles.container}&gt;
         {/* Profile Header */}
         &lt;View style={styles.header}&gt;
           &lt;Image source={require('../../assets/images/react-logo.png')} style={styles.profileImage} /&gt;
@@ -1014,8 +1031,9 @@ export default function ProfileScreen() {
         &gt;
           &lt;Text style={styles.buttonText}&gt;Logout&lt;/Text&gt;
         &lt;/TouchableOpacity&gt;
-      &lt;/ScrollView&gt;
-    &lt;/SafeAreaView&gt;
+        &lt;/ScrollView&gt;
+      &lt;/SafeAreaView&gt;
+    &lt;/View&gt;
   );
 }
 &nbsp;
@@ -1195,7 +1213,7 @@ const styles = StyleSheet.create({
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-01-13T04:26:53.896Z
+                at 2026-01-17T06:40:15.422Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

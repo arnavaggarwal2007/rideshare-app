@@ -1,0 +1,38 @@
+{
+  "staging": {
+    "name": "Staging",
+    "apiBaseUrl": "https://rideboard-perf-staging.firebaseio.com",
+    "firestoreProjectId": "rideboard-perf-staging",
+    "region": "us-central1",
+    "quotaLimits": {
+      "firestoreReads": 50000,
+      "firestoreWrites": 20000,
+      "storageGb": 1,
+      "functionInvocations": 2000000
+    }
+  },
+  "production": {
+    "name": "Production",
+    "apiBaseUrl": "https://rideboard-prod.firebaseio.com",
+    "firestoreProjectId": "rideboard-prod",
+    "region": "us-central1",
+    "quotaLimits": {
+      "firestoreReads": null,
+      "firestoreWrites": null,
+      "storageGb": null,
+      "functionInvocations": null
+    }
+  },
+  "local": {
+    "name": "Local Emulator",
+    "apiBaseUrl": "http://localhost:8080",
+    "firestoreProjectId": "demo-rideboard",
+    "region": "local",
+    "quotaLimits": {
+      "firestoreReads": null,
+      "firestoreWrites": null,
+      "storageGb": null,
+      "functionInvocations": null
+    }
+  }
+}

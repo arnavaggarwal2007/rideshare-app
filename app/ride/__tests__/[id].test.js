@@ -73,11 +73,10 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
-import { Alert } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { router, useLocalSearchParams } from 'expo-router';
+import { Alert } from 'react-native';
 import { getRideById } from '../../../services/firebase/firestore';
-import { deleteRideThunk } from '../../../store/slices/ridesSlice';
 import RideDetailsScreen from '../[id]';
 
 // Redux mock
@@ -419,13 +418,30 @@ describe('RideDetailsScreen', () => {
         unwrap: () => Promise.resolve(),
       }));
       
+      // Clear alert calls to check for success alert
+      Alert.alert.mockClear();
+      
       // Simulate pressing Delete in the alert
-      const alertCall = Alert.alert.mock.calls[0];
-      const deleteAction = alertCall[2].find(btn => btn.text === 'Delete');
+      const alertCall = Alert.alert.mock.calls[0] || mockDispatch.mock.calls[0];
+      // Re-trigger the alert by pressing the button
+      fireEvent.press(deleteButton);
+      
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalled();
+      });
+      
+      // Get the delete action and call it
+      const newAlertCall = Alert.alert.mock.calls[0];
+      const deleteAction = newAlertCall[2].find(btn => btn.text === 'Delete');
       await deleteAction.onPress();
       
       await waitFor(() => {
-        expect(mockDispatch).toHaveBeenCalled();
+        // Check for success alert
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Deleted',
+          'Ride deleted successfully.',
+          expect.any(Array)
+        );
       });
     });
 

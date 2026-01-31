@@ -112,15 +112,14 @@ jest.mock('../../../components/PreferenceToggle', () => {
   };
 });
 
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import React from 'react';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 
-import EditProfileScreen from '../edit-profile';
-import { router } from 'expo-router';
 import { useFonts } from '@expo-google-fonts/montserrat';
-import { useAuth } from '../../../hooks/AuthContext';
+import { router } from 'expo-router';
 import { updateDoc } from 'firebase/firestore';
+import { useAuth } from '../../../hooks/AuthContext';
+import EditProfileScreen from '../edit-profile';
 
 // Alert spy
 const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
@@ -555,6 +554,149 @@ describe('EditProfileScreen', () => {
 
       // Should use defaults
       expect(getByTestId('toggle-Pet-Friendly')).toBeTruthy();
+    });
+
+    it('shows not signed in alert when user is null', async () => {
+      // Temporarily mock auth to return null user
+      const originalAuth = require('../../../firebaseConfig').auth;
+      require('../../../firebaseConfig').auth = { currentUser: null };
+
+      const { getByText } = render(<EditProfileScreen />);
+
+      fireEvent.press(getByText('Save Changes'));
+
+      await waitFor(() => {
+        expect(alertSpy).toHaveBeenCalledWith(
+          'Not signed in',
+          'Please sign in and try again.'
+        );
+      });
+
+      // Restore original auth
+      require('../../../firebaseConfig').auth = originalAuth;
+    });
+
+    it('navigates to profile on successful save OK press', async () => {
+      const mockRefreshProfile = jest.fn(() => Promise.resolve());
+      useAuth.mockReturnValue({
+        userProfile: {
+          name: 'John Doe',
+          school: 'UCLA',
+          major: 'Computer Science',
+          graduationYear: '2025',
+          bio: '',
+          pronouns: '',
+          emergencyContacts: [],
+          ridePreferences: {
+            musicTaste: 'Any',
+            chattiness: 'Moderate',
+            petFriendly: false,
+            smokingOk: false,
+          },
+        },
+        loading: false,
+        refreshProfile: mockRefreshProfile,
+      });
+
+      const { getByText } = render(<EditProfileScreen />);
+
+      fireEvent.press(getByText('Save Changes'));
+
+      await waitFor(() => {
+        expect(alertSpy).toHaveBeenCalledWith(
+          'Profile Updated',
+          'Your changes have been saved.',
+          expect.any(Array)
+        );
+      });
+
+      // Get the OK button callback and call it
+      const alertCall = alertSpy.mock.calls.find(call => call[0] === 'Profile Updated');
+      const okButton = alertCall[2][0];
+      okButton.onPress();
+
+      expect(require('expo-router').router.replace).toHaveBeenCalledWith('/(tabs)/profile');
+    });
+
+    it('updates emergency contact fields', async () => {
+      useAuth.mockReturnValue({
+        userProfile: {
+          name: 'John Doe',
+          school: 'UCLA',
+          major: 'Computer Science',
+          graduationYear: '2025',
+          emergencyContacts: [{ name: 'Contact 1', phone: '555-1234', relationship: 'Friend' }],
+          ridePreferences: {},
+        },
+        loading: false,
+        refreshProfile: jest.fn(),
+      });
+
+      const { getByTestId } = render(<EditProfileScreen />);
+
+      // Update contact name
+      fireEvent.changeText(getByTestId('contact-name-0'), 'Updated Name');
+
+      // Update contact phone
+      fireEvent.changeText(getByTestId('contact-phone-0'), '555-9999');
+
+      // Verify the input was changed (the mock component shows the value)
+      expect(getByTestId('contact-name-0').props.value).toBe('Updated Name');
+      expect(getByTestId('contact-phone-0').props.value).toBe('555-9999');
+    });
+
+    it('updates music preference selection', async () => {
+      const { getByTestId, queryByTestId } = render(<EditProfileScreen />);
+
+      // The option-Rock should exist, pressing it should trigger onSelect
+      const rockOption = getByTestId('option-Rock');
+      fireEvent.press(rockOption);
+
+      // Verify the option was pressed (the mock will call onSelect)
+      expect(rockOption).toBeTruthy();
+    });
+
+    it('updates conversation level selection', async () => {
+      const { getByTestId } = render(<EditProfileScreen />);
+
+      // The option-Chatty should exist, pressing it should trigger onSelect
+      const chattyOption = getByTestId('option-Chatty');
+      fireEvent.press(chattyOption);
+
+      // Verify the option was pressed
+      expect(chattyOption).toBeTruthy();
+    });
+
+    it('removes emergency contact when remove button pressed', async () => {
+      useAuth.mockReturnValue({
+        userProfile: {
+          name: 'John Doe',
+          school: 'UCLA',
+          major: 'Computer Science',
+          graduationYear: '2025',
+          emergencyContacts: [
+            { name: 'Contact 1', phone: '555-1234', relationship: 'Friend' },
+            { name: 'Contact 2', phone: '555-5678', relationship: 'Family' },
+          ],
+          ridePreferences: {},
+        },
+        loading: false,
+        refreshProfile: jest.fn(),
+      });
+
+      const { getByTestId, queryByTestId } = render(<EditProfileScreen />);
+
+      // Verify both contacts exist
+      expect(getByTestId('emergency-contact-0')).toBeTruthy();
+      expect(getByTestId('emergency-contact-1')).toBeTruthy();
+
+      // Remove the first contact
+      fireEvent.press(getByTestId('remove-contact-0'));
+
+      // After removal, only one contact should remain
+      await waitFor(() => {
+        expect(queryByTestId('emergency-contact-1')).toBeNull();
+      });
     });
   });
 });

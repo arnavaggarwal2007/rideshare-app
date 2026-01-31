@@ -216,6 +216,20 @@ describe('Safety Slice', () => {
 			const result = await thunk(dispatch, getState, undefined);
 			expect(result.payload).toBe('user2');
 		});
+
+		it('returns error message on rejection', async () => {
+			blockUser.mockRejectedValue(new Error('Block service error'));
+			const dispatch = jest.fn();
+			const getState = jest.fn();
+
+			const thunk = blockUserThunk({
+				userId: 'user1',
+				blockedUserId: 'user2',
+			});
+
+			const result = await thunk(dispatch, getState, undefined);
+			expect(result.payload).toBe('Block service error');
+		});
 	});
 
 	describe('unblockUserThunk', () => {
@@ -258,6 +272,20 @@ describe('Safety Slice', () => {
 			await thunk(dispatch, getState, undefined);
 
 			expect(unblockUser).toHaveBeenCalledWith('currentUser', 'userToUnblock');
+		});
+
+		it('returns error message on rejection', async () => {
+			unblockUser.mockRejectedValue(new Error('Unblock service error'));
+			const dispatch = jest.fn();
+			const getState = jest.fn();
+
+			const thunk = unblockUserThunk({
+				userId: 'user1',
+				blockedUserId: 'user2',
+			});
+
+			const result = await thunk(dispatch, getState, undefined);
+			expect(result.payload).toBe('Unblock service error');
 		});
 	});
 

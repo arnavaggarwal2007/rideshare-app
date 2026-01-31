@@ -31,14 +31,13 @@ jest.mock('../../../services/notifications/pushNotifications', () => ({
 	registerForPushNotificationsAsync: jest.fn(),
 }));
 
-import { fireEvent, render, act, waitFor } from '@testing-library/react-native';
-import React from 'react';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 
 // CRITICAL: Unmock react-redux to use real Provider and hooks
 jest.unmock('react-redux');
 
-import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
+import { Provider } from 'react-redux';
 
 // Mock fonts
 jest.mock('expo-font', () => ({
@@ -144,8 +143,8 @@ const createMockStore = (initialState = {}) => {
 	});
 };
 
-import ChatScreen from '../[id]';
 import { router } from 'expo-router';
+import ChatScreen from '../[id]';
 
 describe('ChatScreen', () => {
 	const mockChat = {
@@ -393,6 +392,637 @@ describe('ChatScreen', () => {
 
 			await waitFor(() => {
 				expect(getByTestId('icon-send')).toBeTruthy();
+			});
+		});
+
+		it('allows typing in message input', async () => {
+			const store = createMockStore();
+			const { getByPlaceholderText } = render(
+				<Provider store={store}>
+					<ChatScreen />
+				</Provider>
+			);
+
+			await waitFor(() => {
+				const input = getByPlaceholderText('Type a message...');
+				fireEvent.changeText(input, 'Hello world');
+				expect(input.props.value).toBe('Hello world');
+			});
+		});
+	});
+
+	describe('info modal', () => {
+		it('opens info modal when info button pressed', async () => {
+			const store = createMockStore();
+			const { getByTestId, getByText } = render(
+				<Provider store={store}>
+					<ChatScreen />
+				</Provider>
+			);
+
+			await waitFor(() => {
+				expect(getByTestId('icon-information-circle-outline')).toBeTruthy();
+			});
+
+			const infoButton = getByTestId('icon-information-circle-outline').parent;
+			await act(async () => {
+				fireEvent.press(infoButton);
+			});
+
+			await waitFor(() => {
+				expect(getByText('Chat Information')).toBeTruthy();
+			});
+		});
+
+		it('shows view profile option in modal', async () => {
+			const store = createMockStore();
+			const { getByTestId, getByText } = render(
+				<Provider store={store}>
+					<ChatScreen />
+				</Provider>
+			);
+
+			await waitFor(() => {
+				expect(getByTestId('icon-information-circle-outline')).toBeTruthy();
+			});
+
+			const infoButton = getByTestId('icon-information-circle-outline').parent;
+			await act(async () => {
+				fireEvent.press(infoButton);
+			});
+
+			await waitFor(() => {
+				expect(getByText("View John Driver's Profile")).toBeTruthy();
+			});
+		});
+
+		it('shows view trip option in modal', async () => {
+			const store = createMockStore();
+			const { getByTestId, getByText } = render(
+				<Provider store={store}>
+					<ChatScreen />
+				</Provider>
+			);
+
+			await waitFor(() => {
+				expect(getByTestId('icon-information-circle-outline')).toBeTruthy();
+			});
+
+			const infoButton = getByTestId('icon-information-circle-outline').parent;
+			await act(async () => {
+				fireEvent.press(infoButton);
+			});
+
+			await waitFor(() => {
+				expect(getByText('View Trip Details')).toBeTruthy();
+			});
+		});
+
+		it('navigates to profile when option pressed', async () => {
+			const store = createMockStore();
+			const { getByTestId, getByText } = render(
+				<Provider store={store}>
+					<ChatScreen />
+				</Provider>
+			);
+
+			await waitFor(() => {
+				expect(getByTestId('icon-information-circle-outline')).toBeTruthy();
+			});
+
+			const infoButton = getByTestId('icon-information-circle-outline').parent;
+			await act(async () => {
+				fireEvent.press(infoButton);
+			});
+
+			await waitFor(() => {
+				expect(getByText("View John Driver's Profile")).toBeTruthy();
+			});
+
+			await act(async () => {
+				fireEvent.press(getByText("View John Driver's Profile"));
+			});
+
+			expect(router.push).toHaveBeenCalledWith('/user/user456');
+		});
+
+		it('navigates to trip when option pressed', async () => {
+			const store = createMockStore();
+			const { getByTestId, getByText } = render(
+				<Provider store={store}>
+					<ChatScreen />
+				</Provider>
+			);
+
+			await waitFor(() => {
+				expect(getByTestId('icon-information-circle-outline')).toBeTruthy();
+			});
+
+			const infoButton = getByTestId('icon-information-circle-outline').parent;
+			await act(async () => {
+				fireEvent.press(infoButton);
+			});
+
+			await waitFor(() => {
+				expect(getByText('View Trip Details')).toBeTruthy();
+			});
+
+			await act(async () => {
+				fireEvent.press(getByText('View Trip Details'));
+			});
+
+			expect(router.push).toHaveBeenCalledWith('/trip/trip123');
+		});
+
+		it('closes modal when cancel pressed', async () => {
+			const store = createMockStore();
+			const { getByTestId, getByText, queryByText } = render(
+				<Provider store={store}>
+					<ChatScreen />
+				</Provider>
+			);
+
+			await waitFor(() => {
+				expect(getByTestId('icon-information-circle-outline')).toBeTruthy();
+			});
+
+			const infoButton = getByTestId('icon-information-circle-outline').parent;
+			await act(async () => {
+				fireEvent.press(infoButton);
+			});
+
+			await waitFor(() => {
+				expect(getByText('Chat Information')).toBeTruthy();
+			});
+
+			await act(async () => {
+				fireEvent.press(getByText('Cancel'));
+			});
+
+			await waitFor(() => {
+				expect(queryByText('Chat Information')).toBeNull();
+			});
+		});
+	});
+
+	describe('trip card variations', () => {
+		it('shows pending status without confirmation badge', async () => {
+			const pendingTrip = { ...mockTrip, status: 'pending' };
+			mockGetTripById.mockResolvedValue(pendingTrip);
+			
+			const store = createMockStore();
+			const { queryByText } = render(
+				<Provider store={store}>
+					<ChatScreen />
+				</Provider>
+			);
+
+			await waitFor(() => {
+				expect(queryByText(/confirmed your seat request/)).toBeNull();
+			});
+		});
+
+		it('handles trip without departureTimestamp', async () => {
+			const tripWithoutTimestamp = { 
+				...mockTrip, 
+				departureTimestamp: null,
+			};
+			mockGetTripById.mockResolvedValue(tripWithoutTimestamp);
+			
+			const store = createMockStore();
+			const { getByText } = render(
+				<Provider store={store}>
+					<ChatScreen />
+				</Provider>
+			);
+
+			await waitFor(() => {
+				expect(getByText(/San Francisco.*→.*Los Angeles/)).toBeTruthy();
+			});
+		});
+	});
+
+	describe('message handling', () => {
+		it('handles messages without timestamp', async () => {
+			const messagesWithoutTimestamp = [
+				{
+					id: 'msg1',
+					text: 'Hello!',
+					senderId: 'user456',
+					senderName: 'John Driver',
+					timestamp: null,
+				},
+			];
+			
+			mockSubscribeToChat.mockImplementation((chatId, callback) => {
+				callback(messagesWithoutTimestamp);
+				return jest.fn();
+			});
+			
+			const store = createMockStore();
+			const { getByTestId } = render(
+				<Provider store={store}>
+					<ChatScreen />
+				</Provider>
+			);
+
+			await waitFor(() => {
+				expect(getByTestId('gifted-chat')).toBeTruthy();
+			});
+		});
+
+		it('handles invalid messages gracefully', async () => {
+			const invalidMessages = [
+				{ id: null, text: 'Invalid', senderId: null },
+				{ id: 'valid', text: 'Valid message', senderId: 'user456', senderName: 'John' },
+			];
+			
+			mockSubscribeToChat.mockImplementation((chatId, callback) => {
+				callback(invalidMessages);
+				return jest.fn();
+			});
+			
+			const store = createMockStore();
+			const { getByTestId } = render(
+				<Provider store={store}>
+					<ChatScreen />
+				</Provider>
+			);
+
+			await waitFor(() => {
+				expect(getByTestId('gifted-chat')).toBeTruthy();
+			});
+		});
+	});
+
+	describe('error handling', () => {
+		it('shows error when chat fetch fails', async () => {
+			mockGetChatById.mockRejectedValue(new Error('Network error'));
+			
+			const store = createMockStore();
+			const { getByText } = render(
+				<Provider store={store}>
+					<ChatScreen />
+				</Provider>
+			);
+
+			await waitFor(() => {
+				expect(getByText('Failed to load chat')).toBeTruthy();
+			});
+		});
+
+		it('handles trip fetch error gracefully', async () => {
+			mockGetTripById.mockRejectedValue(new Error('Trip not found'));
+			
+			const store = createMockStore();
+			const { getByText, queryByText } = render(
+				<Provider store={store}>
+					<ChatScreen />
+				</Provider>
+			);
+
+			await waitFor(() => {
+				// Chat should still render, just without trip card
+				expect(getByText('John Driver')).toBeTruthy();
+				expect(queryByText(/seat\(s\) booked/)).toBeNull();
+			});
+		});
+	});
+
+	describe('cleanup', () => {
+		it('unsubscribes from chat on unmount', async () => {
+			const mockUnsubscribe = jest.fn();
+			mockSubscribeToChat.mockImplementation((chatId, callback) => {
+				callback(mockMessages);
+				return mockUnsubscribe;
+			});
+			
+			const store = createMockStore();
+			const { unmount } = render(
+				<Provider store={store}>
+					<ChatScreen />
+				</Provider>
+			);
+
+			await waitFor(() => {
+				expect(mockSubscribeToChat).toHaveBeenCalled();
+			});
+
+			unmount();
+			expect(mockUnsubscribe).toHaveBeenCalled();
+		});
+	});
+
+	describe('message timestamps edge cases', () => {
+		it('handles messages with Date object timestamp', async () => {
+			const messagesWithDateTimestamp = [
+				{
+					id: 'msg-date',
+					text: 'Message with Date',
+					senderId: 'user456',
+					senderName: 'John Driver',
+					timestamp: new Date('2025-01-20T10:00:00'),
+				},
+			];
+			
+			mockSubscribeToChat.mockImplementation((chatId, callback) => {
+				callback(messagesWithDateTimestamp);
+				return jest.fn();
+			});
+			
+			const store = createMockStore();
+			const { getByTestId } = render(
+				<Provider store={store}>
+					<ChatScreen />
+				</Provider>
+			);
+
+			await waitFor(() => {
+				expect(getByTestId('gifted-chat')).toBeTruthy();
+			});
+		});
+
+		it('handles messages with invalid date', async () => {
+			const messagesWithInvalidDate = [
+				{
+					id: 'msg-invalid',
+					text: 'Message with invalid date',
+					senderId: 'user456',
+					senderName: 'John Driver',
+					timestamp: 'not-a-date',
+				},
+			];
+			
+			mockSubscribeToChat.mockImplementation((chatId, callback) => {
+				callback(messagesWithInvalidDate);
+				return jest.fn();
+			});
+			
+			const store = createMockStore();
+			const { getByTestId } = render(
+				<Provider store={store}>
+					<ChatScreen />
+				</Provider>
+			);
+
+			await waitFor(() => {
+				expect(getByTestId('gifted-chat')).toBeTruthy();
+			});
+		});
+	});
+
+	describe('location formatting', () => {
+		it('handles location with county in name', async () => {
+			const tripWithCounty = { 
+				...mockTrip, 
+				startLocation: { placeName: 'San Francisco, San Francisco County, California, United States' },
+			};
+			mockGetTripById.mockResolvedValue(tripWithCounty);
+			
+			const store = createMockStore();
+			const { getByText } = render(
+				<Provider store={store}>
+					<ChatScreen />
+				</Provider>
+			);
+
+			await waitFor(() => {
+				// Should filter out county and US
+				expect(getByText(/San Francisco, California.*→/)).toBeTruthy();
+			});
+		});
+
+		it('handles location with USA instead of United States', async () => {
+			const tripWithUSA = { 
+				...mockTrip, 
+				startLocation: { placeName: 'San Jose, California, USA' },
+			};
+			mockGetTripById.mockResolvedValue(tripWithUSA);
+			
+			const store = createMockStore();
+			const { getByText } = render(
+				<Provider store={store}>
+					<ChatScreen />
+				</Provider>
+			);
+
+			await waitFor(() => {
+				expect(getByText(/San Jose, California.*→/)).toBeTruthy();
+			});
+		});
+
+		it('handles location with single part', async () => {
+			const tripSinglePart = { 
+				...mockTrip, 
+				startLocation: { placeName: 'Downtown' },
+			};
+			mockGetTripById.mockResolvedValue(tripSinglePart);
+			
+			const store = createMockStore();
+			const { getByText } = render(
+				<Provider store={store}>
+					<ChatScreen />
+				</Provider>
+			);
+
+			await waitFor(() => {
+				expect(getByText(/Downtown.*→/)).toBeTruthy();
+			});
+		});
+
+		it('handles location with no placeName', async () => {
+			const tripNoPlace = { 
+				...mockTrip, 
+				startLocation: { address: null, placeName: null },
+			};
+			mockGetTripById.mockResolvedValue(tripNoPlace);
+			
+			const store = createMockStore();
+			const { getByText } = render(
+				<Provider store={store}>
+					<ChatScreen />
+				</Provider>
+			);
+
+			await waitFor(() => {
+				expect(getByText(/Unknown.*→/)).toBeTruthy();
+			});
+		});
+	});
+
+	describe('trip date/time formatting', () => {
+		it('formats trip with departureTimestamp', async () => {
+			const tripWithTimestamp = { 
+				...mockTrip, 
+				departureTimestamp: { toDate: () => new Date('2025-06-15T14:30:00') },
+			};
+			mockGetTripById.mockResolvedValue(tripWithTimestamp);
+			
+			const store = createMockStore();
+			const { getByText } = render(
+				<Provider store={store}>
+					<ChatScreen />
+				</Provider>
+			);
+
+			await waitFor(() => {
+				expect(getByText(/Jun 15, 2025/)).toBeTruthy();
+			});
+		});
+
+		it('formats trip with Date object timestamp', async () => {
+			const tripWithDate = { 
+				...mockTrip, 
+				departureTimestamp: new Date('2025-07-20T10:00:00'),
+			};
+			mockGetTripById.mockResolvedValue(tripWithDate);
+			
+			const store = createMockStore();
+			const { getByText } = render(
+				<Provider store={store}>
+					<ChatScreen />
+				</Provider>
+			);
+
+			await waitFor(() => {
+				expect(getByText(/Jul 20, 2025/)).toBeTruthy();
+			});
+		});
+
+		it('shows Date TBD for invalid date', async () => {
+			const tripInvalidDate = { 
+				...mockTrip, 
+				departureTimestamp: null,
+				departureDate: null,
+				createdAt: null,
+			};
+			mockGetTripById.mockResolvedValue(tripInvalidDate);
+			
+			const store = createMockStore();
+			const { getByText } = render(
+				<Provider store={store}>
+					<ChatScreen />
+				</Provider>
+			);
+
+			await waitFor(() => {
+				expect(getByText('Date TBD')).toBeTruthy();
+			});
+		});
+
+		it('shows Time TBD for invalid time', async () => {
+			const tripInvalidTime = { 
+				...mockTrip, 
+				departureTimestamp: null,
+				departureTime: null,
+			};
+			mockGetTripById.mockResolvedValue(tripInvalidTime);
+			
+			const store = createMockStore();
+			const { getByText } = render(
+				<Provider store={store}>
+					<ChatScreen />
+				</Provider>
+			);
+
+			await waitFor(() => {
+				expect(getByText('Time TBD')).toBeTruthy();
+			});
+		});
+
+		it('falls back to createdAt for date', async () => {
+			const tripWithCreatedAt = { 
+				...mockTrip, 
+				departureTimestamp: null,
+				departureDate: null,
+				createdAt: { toDate: () => new Date('2025-03-10T09:00:00') },
+			};
+			mockGetTripById.mockResolvedValue(tripWithCreatedAt);
+			
+			const store = createMockStore();
+			const { getByText } = render(
+				<Provider store={store}>
+					<ChatScreen />
+				</Provider>
+			);
+
+			await waitFor(() => {
+				expect(getByText(/Mar 10, 2025/)).toBeTruthy();
+			});
+		});
+	});
+
+	describe('user state edge cases', () => {
+		it('handles missing userProfile', async () => {
+			const store = createMockStore({ 
+				auth: { 
+					user: { uid: 'user123', email: 'user@example.com' },
+					userProfile: null 
+				} 
+			});
+			const { getByTestId } = render(
+				<Provider store={store}>
+					<ChatScreen />
+				</Provider>
+			);
+
+			await waitFor(() => {
+				expect(getByTestId('gifted-chat')).toBeTruthy();
+			});
+		});
+
+		it('handles missing user', async () => {
+			const store = createMockStore({ 
+				auth: { 
+					user: null,
+					userProfile: null 
+				} 
+			});
+			const { getByText } = render(
+				<Provider store={store}>
+					<ChatScreen />
+				</Provider>
+			);
+
+			// When no user, shows loading (since subscription is skipped)
+			expect(getByText('Loading chat...')).toBeTruthy();
+		});
+	});
+
+	describe('chat without trip', () => {
+		it('renders chat without trip card when no tripId', async () => {
+			const chatNoTrip = { ...mockChat, tripId: null };
+			mockGetChatById.mockResolvedValue(chatNoTrip);
+			mockGetTripById.mockResolvedValue(null);
+			
+			const store = createMockStore();
+			const { getByText, queryByText } = render(
+				<Provider store={store}>
+					<ChatScreen />
+				</Provider>
+			);
+
+			await waitFor(() => {
+				expect(getByText('John Driver')).toBeTruthy();
+				expect(queryByText(/seat\(s\) booked/)).toBeNull();
+			});
+		});
+	});
+
+	describe('seats booked display', () => {
+		it('shows default 1 seat when seatsBooked is missing', async () => {
+			const tripNoSeats = { ...mockTrip, seatsBooked: null };
+			mockGetTripById.mockResolvedValue(tripNoSeats);
+			
+			const store = createMockStore();
+			const { getByText } = render(
+				<Provider store={store}>
+					<ChatScreen />
+				</Provider>
+			);
+
+			await waitFor(() => {
+				expect(getByText('1 seat(s) booked')).toBeTruthy();
 			});
 		});
 	});

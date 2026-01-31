@@ -296,5 +296,17 @@ describe('geocoding service', () => {
 			// Should return error after failing (400 throws, not retryable per isRetryableError)
 			expect(result.error).toBeDefined();
 		});
+
+		it('should throw after exhausting all retries', async () => {
+			// All retries fail with retryable error
+			global.fetch.mockResolvedValue({ ok: false, status: 503 });
+
+			const promise = searchAddress('Test');
+			await jest.runAllTimersAsync();
+			const result = await promise;
+
+			// Should return error after all retries exhausted
+			expect(result.error).toBeDefined();
+		});
 	});
 });

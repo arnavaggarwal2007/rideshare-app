@@ -2,7 +2,6 @@
  * Tests for app/(auth)/forgot-password.js
  */
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
-import React from 'react';
 
 // Mock expo-router
 const mockBack = jest.fn();

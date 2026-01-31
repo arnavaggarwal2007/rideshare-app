@@ -1,14 +1,13 @@
 /**
  * Tests for app/(tabs)/profile.js
  */
-import { fireEvent, render, act } from '@testing-library/react-native';
-import React from 'react';
+import { act, fireEvent, render } from '@testing-library/react-native';
 
 // CRITICAL: Unmock react-redux to use real Provider and hooks
 jest.unmock('react-redux');
 
-import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
+import { Provider } from 'react-redux';
 
 // Mock fonts
 jest.mock('expo-font', () => ({
@@ -171,8 +170,8 @@ const createMockStore = (initialState = {}) => {
 	});
 };
 
-import ProfileScreen from '../profile';
 import { router } from 'expo-router';
+import ProfileScreen from '../profile';
 
 describe('ProfileScreen', () => {
 	beforeEach(() => {
@@ -439,6 +438,62 @@ describe('ProfileScreen', () => {
 			expect(getByText('View all 4 reviews')).toBeTruthy();
 		});
 
+		it('navigates to reviews on view all button press', async () => {
+			const mockReviews = [
+				{ id: 'r1', reviewerName: 'R1', comment: 'A', rating: 5 },
+				{ id: 'r2', reviewerName: 'R2', comment: 'B', rating: 4 },
+				{ id: 'r3', reviewerName: 'R3', comment: 'C', rating: 5 },
+				{ id: 'r4', reviewerName: 'R4', comment: 'D', rating: 4 },
+			];
+			const store = createMockStore({ 
+				reviews: { userReviews: mockReviews },
+				auth: { user: { uid: 'test-user-123' }, userProfile: { name: 'Test' } }
+			});
+			const { getByText } = render(
+				<Provider store={store}>
+					<ProfileScreen />
+				</Provider>
+			);
+
+			fireEvent.press(getByText('View all 4 reviews'));
+			expect(router.push).toHaveBeenCalledWith('/reviews/test-user-123');
+		});
+
+		it('shows view all link in section header when reviews exist', async () => {
+			const mockReviews = [
+				{ id: 'r1', reviewerName: 'R1', comment: 'A', rating: 5 },
+			];
+			const store = createMockStore({ 
+				reviews: { userReviews: mockReviews },
+				auth: { user: { uid: 'test-user-123' }, userProfile: { name: 'Test' } }
+			});
+			const { getByText } = render(
+				<Provider store={store}>
+					<ProfileScreen />
+				</Provider>
+			);
+
+			expect(getByText('View All')).toBeTruthy();
+		});
+
+		it('navigates to reviews when view all link pressed', async () => {
+			const mockReviews = [
+				{ id: 'r1', reviewerName: 'R1', comment: 'A', rating: 5 },
+			];
+			const store = createMockStore({ 
+				reviews: { userReviews: mockReviews },
+				auth: { user: { uid: 'test-user-123' }, userProfile: { name: 'Test' } }
+			});
+			const { getByText } = render(
+				<Provider store={store}>
+					<ProfileScreen />
+				</Provider>
+			);
+
+			fireEvent.press(getByText('View All'));
+			expect(router.push).toHaveBeenCalledWith('/reviews/test-user-123');
+		});
+
 		it('shows loading state for reviews', async () => {
 			const store = createMockStore({ reviews: { userReviews: [], loading: true } });
 			const { getByText } = render(
@@ -480,6 +535,27 @@ describe('ProfileScreen', () => {
 
 			expect(mockSignOut).toHaveBeenCalled();
 			expect(router.replace).toHaveBeenCalledWith('/(auth)/signin');
+		});
+
+		it('handles logout error gracefully', async () => {
+			mockSignOut.mockRejectedValueOnce(new Error('Network error'));
+			const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+			
+			const store = createMockStore();
+			const { getByText } = render(
+				<Provider store={store}>
+					<ProfileScreen />
+				</Provider>
+			);
+
+			await act(async () => {
+				fireEvent.press(getByText('Logout'));
+			});
+
+			expect(mockSignOut).toHaveBeenCalled();
+			expect(consoleSpy).toHaveBeenCalledWith('Sign out error:', expect.any(Error));
+			
+			consoleSpy.mockRestore();
 		});
 	});
 });

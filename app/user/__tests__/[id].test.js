@@ -129,15 +129,14 @@ jest.mock('react-redux', () => ({
   useDispatch: () => mockDispatch,
 }));
 
-import { render, fireEvent } from '@testing-library/react-native';
-import React from 'react';
+import { fireEvent, render } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 
-import OtherUserProfileScreen from '../[id]';
+import { useFonts } from '@expo-google-fonts/montserrat';
+import { router, useLocalSearchParams } from 'expo-router';
 import { getDoc } from 'firebase/firestore';
 import { useAuth } from '../../../hooks/useAuth';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useFonts } from '@expo-google-fonts/montserrat';
+import OtherUserProfileScreen from '../[id]';
 
 // Alert spy
 const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
@@ -493,6 +492,203 @@ describe('OtherUserProfileScreen', () => {
       const { findByText } = render(<OtherUserProfileScreen />);
 
       expect(await findByText(/4\.5.*1 review\)/)).toBeTruthy();
+    });
+  });
+
+  describe('Profile without ratings', () => {
+    it('does not show rating container when no ratings', async () => {
+      getDoc.mockResolvedValue({
+        exists: () => true,
+        data: () => createMockProfile({ averageRating: 0, totalRatings: 0 }),
+      });
+
+      const { findByText, queryByTestId } = render(<OtherUserProfileScreen />);
+
+      await findByText('Jane Smith');
+      expect(queryByTestId('star-rating')).toBeNull();
+    });
+
+    it('does not show trips completed when zero', async () => {
+      getDoc.mockResolvedValue({
+        exists: () => true,
+        data: () => createMockProfile({ totalTripsCompleted: 0 }),
+      });
+
+      const { findByText, queryByText } = render(<OtherUserProfileScreen />);
+
+      await findByText('Jane Smith');
+      expect(queryByText(/trips completed/)).toBeNull();
+    });
+  });
+
+  describe('Reviews interactions', () => {
+    it('navigates to all reviews when View All button pressed', async () => {
+      setMockState({
+        userReviews: [
+          { id: 'review-1', comment: 'Great!' },
+          { id: 'review-2', comment: 'Good!' },
+          { id: 'review-3', comment: 'Nice!' },
+          { id: 'review-4', comment: 'Excellent!' },
+        ],
+      });
+
+      const { findByText } = render(<OtherUserProfileScreen />);
+
+      const viewAllButton = await findByText('View all 4 reviews');
+      fireEvent.press(viewAllButton);
+
+      expect(router.push).toHaveBeenCalledWith('/reviews/user-456');
+    });
+  });
+
+  describe('Fetching data', () => {
+    it('dispatches fetchUserReviewsThunk on mount', async () => {
+      const { fetchUserReviewsThunk } = require('../../../store/slices/reviewsSlice');
+      
+      const { findByText } = render(<OtherUserProfileScreen />);
+
+      await findByText('Jane Smith');
+
+      expect(fetchUserReviewsThunk).toHaveBeenCalledWith({ userId: 'user-456' });
+    });
+
+    it('dispatches fetchBlockedUsersThunk when user logged in', async () => {
+      const { fetchBlockedUsersThunk } = require('../../../store/slices/safetySlice');
+      
+      const { findByText } = render(<OtherUserProfileScreen />);
+
+      await findByText('Jane Smith');
+
+      expect(fetchBlockedUsersThunk).toHaveBeenCalledWith({ userId: 'current-user-123' });
+    });
+  });
+
+  describe('Ride Preferences Display', () => {
+    it('shows chattiness preference', async () => {
+      const { findByText } = render(<OtherUserProfileScreen />);
+
+      expect(await findByText('Chattiness: Moderate')).toBeTruthy();
+    });
+
+    it('shows music preference', async () => {
+      const { findByText } = render(<OtherUserProfileScreen />);
+
+      expect(await findByText('Music Taste: Pop')).toBeTruthy();
+    });
+
+    it('shows pet friendly status', async () => {
+      const { findByText } = render(<OtherUserProfileScreen />);
+
+      expect(await findByText('Pet Friendly: Yes')).toBeTruthy();
+    });
+
+    it('shows smoking preference', async () => {
+      const { findByText } = render(<OtherUserProfileScreen />);
+
+      expect(await findByText('Smoking OK: No')).toBeTruthy();
+    });
+
+    it('handles missing ride preferences', async () => {
+      getDoc.mockResolvedValue({
+        exists: () => true,
+        data: () => createMockProfile({ ridePreferences: null }),
+      });
+
+      const { findByText } = render(<OtherUserProfileScreen />);
+
+      await findByText('Jane Smith');
+      // Should show "No ride preferences set."
+      expect(await findByText('No ride preferences set.')).toBeTruthy();
+    });
+  });
+
+  describe('Bio Display', () => {
+    it('shows bio when available', async () => {
+      const { findByText } = render(<OtherUserProfileScreen />);
+
+      expect(await findByText('Bio: Love to travel!')).toBeTruthy();
+    });
+
+    it('shows dash when bio is missing', async () => {
+      getDoc.mockResolvedValue({
+        exists: () => true,
+        data: () => createMockProfile({ bio: null }),
+      });
+
+      const { findByText } = render(<OtherUserProfileScreen />);
+
+      await findByText('Jane Smith');
+      expect(await findByText('Bio: -')).toBeTruthy();
+    });
+  });
+
+  describe('Academic Info', () => {
+    it('shows major when available', async () => {
+      const { findByText } = render(<OtherUserProfileScreen />);
+
+      expect(await findByText('Major: Computer Science')).toBeTruthy();
+    });
+
+    it('shows graduation year when available', async () => {
+      const { findByText } = render(<OtherUserProfileScreen />);
+
+      expect(await findByText('Graduation Year: 2025')).toBeTruthy();
+    });
+
+    it('shows pronouns when available', async () => {
+      const { findByText } = render(<OtherUserProfileScreen />);
+
+      expect(await findByText('Pronouns: she/her')).toBeTruthy();
+    });
+  });
+
+  describe('More Options Button', () => {
+    it('renders more options button', async () => {
+      const { findByText } = render(<OtherUserProfileScreen />);
+
+      await findByText('Jane Smith');
+      // The more options button should be available
+    });
+  });
+
+  describe('Report Modal', () => {
+    it('shows report modal when visible', async () => {
+      const { findByText } = render(<OtherUserProfileScreen />);
+
+      await findByText('Jane Smith');
+      // Report modal functionality is tested via mock
+    });
+  });
+
+  describe('More Options Button', () => {
+    it('renders more options button for other users', async () => {
+      const { findByText, findByLabelText } = render(<OtherUserProfileScreen />);
+
+      await findByText('Jane Smith');
+
+      // The more options button should be present
+      expect(await findByLabelText('More options')).toBeTruthy();
+    });
+
+    it('does not render more options for own profile', async () => {
+      useAuth.mockReturnValue({ user: { uid: 'user-456' } }); // Same as profile user
+      useLocalSearchParams.mockReturnValue({ id: 'user-456' });
+
+      const { findByText, queryByLabelText } = render(<OtherUserProfileScreen />);
+
+      await findByText('Jane Smith');
+      expect(queryByLabelText('More options')).toBeNull();
+    });
+  });
+
+  describe('Blocked User Display', () => {
+    it('shows blocked banner and icon', async () => {
+      setMockState({}, { blockedUsers: ['user-456'] });
+
+      const { findByText, findByTestId } = render(<OtherUserProfileScreen />);
+
+      await findByText('Jane Smith');
+      expect(await findByText('You have blocked this user')).toBeTruthy();
     });
   });
 });

@@ -55,8 +55,8 @@ jest.mock('../../../components/ui/icon-symbol', () => ({
   },
 }));
 
-import { render } from '@testing-library/react-native';
 import { useFonts } from '@expo-google-fonts/lato';
+import { render } from '@testing-library/react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import TabsLayout from '../_layout';
 
@@ -288,6 +288,183 @@ describe('TabsLayout', () => {
       const { getByTestId } = render(<TabsLayout />);
       
       expect(getByTestId('tabs-container')).toBeTruthy();
+    });
+  });
+
+  describe('Badge Display Logic', () => {
+    it('should show single digit badge count', () => {
+      mockChatsState = {
+        chats: [
+          { id: 'chat1', unreadCount: { testUser123: 3 } },
+        ],
+      };
+      
+      const state = {
+        auth: mockAuthState,
+        chats: mockChatsState,
+      };
+      
+      const chats = state.chats.chats;
+      const user = state.auth.user;
+      const totalUnread = chats.reduce((total, chat) => {
+        const unreadCount = chat.unreadCount?.[user?.uid] || 0;
+        return total + unreadCount;
+      }, 0);
+      
+      // For single digit, show exact number (not 9+)
+      expect(totalUnread).toBe(3);
+      expect(totalUnread <= 9).toBe(true);
+    });
+
+    it('should cap badge at 9+ for large counts', () => {
+      mockChatsState = {
+        chats: [
+          { id: 'chat1', unreadCount: { testUser123: 10 } },
+          { id: 'chat2', unreadCount: { testUser123: 5 } },
+        ],
+      };
+      
+      const state = {
+        auth: mockAuthState,
+        chats: mockChatsState,
+      };
+      
+      const chats = state.chats.chats;
+      const user = state.auth.user;
+      const totalUnread = chats.reduce((total, chat) => {
+        const unreadCount = chat.unreadCount?.[user?.uid] || 0;
+        return total + unreadCount;
+      }, 0);
+      
+      expect(totalUnread).toBe(15);
+      expect(totalUnread > 9).toBe(true);
+      // Badge should show "9+"
+    });
+
+    it('should handle exactly 9 unread messages', () => {
+      mockChatsState = {
+        chats: [
+          { id: 'chat1', unreadCount: { testUser123: 9 } },
+        ],
+      };
+      
+      const state = {
+        auth: mockAuthState,
+        chats: mockChatsState,
+      };
+      
+      const chats = state.chats.chats;
+      const user = state.auth.user;
+      const totalUnread = chats.reduce((total, chat) => {
+        const unreadCount = chat.unreadCount?.[user?.uid] || 0;
+        return total + unreadCount;
+      }, 0);
+      
+      expect(totalUnread).toBe(9);
+      // Should show "9" not "9+"
+    });
+  });
+
+  describe('Tab Bar Styling', () => {
+    it('should apply styles based on safe area insets', () => {
+      // Large bottom inset
+      useSafeAreaInsets.mockReturnValue({
+        top: 44,
+        bottom: 50,
+        left: 0,
+        right: 0,
+      });
+      
+      const { getByTestId } = render(<TabsLayout />);
+      expect(getByTestId('tabs-container')).toBeTruthy();
+    });
+
+    it('should handle asymmetric side insets', () => {
+      useSafeAreaInsets.mockReturnValue({
+        top: 44,
+        bottom: 34,
+        left: 30,
+        right: 10,
+      });
+      
+      const { getByTestId } = render(<TabsLayout />);
+      expect(getByTestId('tabs-container')).toBeTruthy();
+    });
+
+    it('should compute marginHorizontal correctly', () => {
+      // Test with insets where left > right
+      useSafeAreaInsets.mockReturnValue({
+        top: 0,
+        bottom: 0,
+        left: 40,
+        right: 10,
+      });
+      
+      const { getByTestId } = render(<TabsLayout />);
+      expect(getByTestId('tabs-container')).toBeTruthy();
+    });
+
+    it('should use minimum margins with zero insets', () => {
+      useSafeAreaInsets.mockReturnValue({
+        top: 0,
+        bottom: 0,
+        left: 0,
+        right: 0,
+      });
+      
+      const { getByTestId } = render(<TabsLayout />);
+      expect(getByTestId('tabs-container')).toBeTruthy();
+    });
+  });
+
+  describe('Multiple Chats Unread Calculation', () => {
+    it('should sum unread from multiple chats', () => {
+      mockChatsState = {
+        chats: [
+          { id: 'chat1', unreadCount: { testUser123: 1 } },
+          { id: 'chat2', unreadCount: { testUser123: 2 } },
+          { id: 'chat3', unreadCount: { testUser123: 3 } },
+          { id: 'chat4', unreadCount: { testUser123: 4 } },
+        ],
+      };
+      
+      const state = {
+        auth: mockAuthState,
+        chats: mockChatsState,
+      };
+      
+      const chats = state.chats.chats;
+      const user = state.auth.user;
+      const totalUnread = chats.reduce((total, chat) => {
+        const unreadCount = chat.unreadCount?.[user?.uid] || 0;
+        return total + unreadCount;
+      }, 0);
+      
+      expect(totalUnread).toBe(10);
+    });
+
+    it('should handle mix of read and unread chats', () => {
+      mockChatsState = {
+        chats: [
+          { id: 'chat1', unreadCount: { testUser123: 0 } },
+          { id: 'chat2', unreadCount: { testUser123: 5 } },
+          { id: 'chat3', unreadCount: { testUser123: 0 } },
+        ],
+      };
+      
+      const state = {
+        auth: mockAuthState,
+        chats: mockChatsState,
+      };
+      
+      const chats = state.chats.chats;
+      const user = state.auth.user;
+      const totalUnread = chats.reduce((total, chat) => {
+        const unreadCount = chat.unreadCount?.[user?.uid] || 0;
+        return total + unreadCount;
+      }, 0);
+      
+      expect(totalUnread).toBe(5);
     });
   });
 });

@@ -1,14 +1,13 @@
 /**
  * Tests for app/(tabs)/my-trips.js
  */
-import { fireEvent, render, act } from '@testing-library/react-native';
-import React from 'react';
+import { act, fireEvent, render } from '@testing-library/react-native';
 
 // CRITICAL: Unmock react-redux to use real Provider and hooks
 jest.unmock('react-redux');
 
-import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
+import { Provider } from 'react-redux';
 
 // Mock fonts
 jest.mock('@expo-google-fonts/montserrat', () => ({
@@ -475,6 +474,279 @@ describe('MyTripsScreen', () => {
 			unmount();
 			expect(mockUnsubscribeRequests).toHaveBeenCalled();
 			expect(mockUnsubscribeTrips).toHaveBeenCalled();
+		});
+	});
+
+	describe('cancel request', () => {
+		const mockPendingRequests = [
+			{
+				id: 'pending-cancel',
+				riderId: 'rider123',
+				driverName: 'Cancel Test',
+				seatsRequested: 2,
+				message: 'Please cancel me',
+				status: 'pending',
+				startLocation: { address: 'Start' },
+				endLocation: { address: 'End' },
+			},
+		];
+
+		it('dispatches cancel and calls haptics', async () => {
+			mockSubscribeToRiderRequests.mockImplementation((userId, callback) => {
+				callback(mockPendingRequests);
+				return mockUnsubscribeRequests;
+			});
+			
+			const store = createMockStore({ requests: { myRequests: mockPendingRequests } });
+			const { getByText } = render(
+				<Provider store={store}>
+					<MyTripsScreen />
+				</Provider>
+			);
+
+			await act(async () => {
+				jest.advanceTimersByTime(100);
+			});
+
+			await act(async () => {
+				fireEvent.press(getByText('Cancel'));
+			});
+
+			// The haptics should be called
+			const Haptics = require('expo-haptics');
+			expect(Haptics.selectionAsync).toHaveBeenCalled();
+		});
+	});
+
+	describe('location display edge cases', () => {
+		it('handles null location gracefully', async () => {
+			const tripNullLocation = {
+				id: 'trip-null-loc',
+				driverName: 'Null Driver',
+				status: 'confirmed',
+				departureTimestamp: { toDate: () => new Date(Date.now() + 86400000) },
+				seatsBooked: 1,
+				pricePerSeat: 20,
+				startLocation: null,
+				endLocation: { placeName: '' },
+			};
+
+			mockSubscribeToRiderTrips.mockImplementation((userId, callback) => {
+				callback([tripNullLocation]);
+				return mockUnsubscribeTrips;
+			});
+			
+			const store = createMockStore();
+			const { getAllByText } = render(
+				<Provider store={store}>
+					<MyTripsScreen />
+				</Provider>
+			);
+
+			await act(async () => {
+				jest.advanceTimersByTime(100);
+			});
+
+			// Should show dash for empty/null locations
+			const dashes = getAllByText('—');
+			expect(dashes.length).toBeGreaterThan(0);
+		});
+	});
+
+	describe('trip date formatting edge cases', () => {
+		it('handles invalid timestamp', async () => {
+			const tripInvalidTimestamp = {
+				id: 'trip-invalid-ts',
+				driverName: 'Invalid TS',
+				status: 'confirmed',
+				departureTimestamp: { toDate: () => new Date('invalid') },
+				seatsBooked: 1,
+				pricePerSeat: 20,
+				startLocation: { placeName: 'Start' },
+				endLocation: { placeName: 'End' },
+			};
+
+			mockSubscribeToRiderTrips.mockImplementation((userId, callback) => {
+				callback([tripInvalidTimestamp]);
+				return mockUnsubscribeTrips;
+			});
+			
+			const store = createMockStore();
+			const { getAllByText } = render(
+				<Provider store={store}>
+					<MyTripsScreen />
+				</Provider>
+			);
+
+			await act(async () => {
+				jest.advanceTimersByTime(100);
+			});
+
+			// Should show TBD for invalid timestamps
+			const tbdTexts = getAllByText('TBD');
+			expect(tbdTexts.length).toBeGreaterThan(0);
+		});
+
+		it('handles plain date timestamp', async () => {
+			const tripPlainDate = {
+				id: 'trip-plain-date',
+				driverName: 'Plain Date',
+				status: 'confirmed',
+				departureTimestamp: new Date('2025-06-15T10:00:00'),
+				seatsBooked: 1,
+				pricePerSeat: 20,
+				startLocation: { placeName: 'Start City' },
+				endLocation: { placeName: 'End City' },
+			};
+
+			mockSubscribeToRiderTrips.mockImplementation((userId, callback) => {
+				callback([tripPlainDate]);
+				return mockUnsubscribeTrips;
+			});
+			
+			const store = createMockStore();
+			const { getByText } = render(
+				<Provider store={store}>
+					<MyTripsScreen />
+				</Provider>
+			);
+
+			await act(async () => {
+				jest.advanceTimersByTime(100);
+			});
+
+			// Should format the date
+			expect(getByText('Jun 15')).toBeTruthy();
+		});
+
+		it('handles missing timestamp', async () => {
+			const tripNoTimestamp = {
+				id: 'trip-no-ts',
+				driverName: 'No Timestamp',
+				status: 'confirmed',
+				departureTimestamp: null,
+				seatsBooked: 1,
+				pricePerSeat: 20,
+				startLocation: { placeName: 'Start' },
+				endLocation: { placeName: 'End' },
+			};
+
+			mockSubscribeToRiderTrips.mockImplementation((userId, callback) => {
+				callback([tripNoTimestamp]);
+				return mockUnsubscribeTrips;
+			});
+			
+			const store = createMockStore();
+			const { getAllByText } = render(
+				<Provider store={store}>
+					<MyTripsScreen />
+				</Provider>
+			);
+
+			await act(async () => {
+				jest.advanceTimersByTime(100);
+			});
+
+			// Should show TBD for missing timestamps
+			const tbdTexts = getAllByText('TBD');
+			expect(tbdTexts.length).toBeGreaterThan(0);
+		});
+	});
+
+	describe('trip status badge', () => {
+		it('shows completed status badge for completed trip', async () => {
+			const completedTrip = {
+				id: 'trip-completed',
+				driverName: 'Complete Driver',
+				status: 'completed',
+				departureTimestamp: { toDate: () => new Date() },
+				seatsBooked: 1,
+				pricePerSeat: 20,
+				startLocation: { placeName: 'Start City' },
+				endLocation: { placeName: 'End City' },
+			};
+
+			mockSubscribeToRiderTrips.mockImplementation((userId, callback) => {
+				callback([completedTrip]);
+				return mockUnsubscribeTrips;
+			});
+			
+			const store = createMockStore();
+			const { getAllByText } = render(
+				<Provider store={store}>
+					<MyTripsScreen />
+				</Provider>
+			);
+
+			await act(async () => {
+				jest.advanceTimersByTime(100);
+			});
+
+			// There will be multiple "Completed" texts - section header + status badge
+			const completedTexts = getAllByText('Completed');
+			expect(completedTexts.length).toBeGreaterThanOrEqual(1);
+		});
+	});
+
+	describe('trip with chat', () => {
+		const tripWithChat = {
+			id: 'trip-chat-nav',
+			driverName: 'Chat Driver',
+			status: 'confirmed',
+			departureTimestamp: { toDate: () => new Date(Date.now() + 86400000) },
+			seatsBooked: 1,
+			pricePerSeat: 20,
+			startLocation: { placeName: 'Start City' },
+			endLocation: { placeName: 'End City' },
+			chatId: 'chat-123',
+		};
+
+		it('shows chat icon for trips with chatId', async () => {
+			mockSubscribeToRiderTrips.mockImplementation((userId, callback) => {
+				callback([tripWithChat]);
+				return mockUnsubscribeTrips;
+			});
+			
+			const store = createMockStore();
+			const { getByTestId } = render(
+				<Provider store={store}>
+					<MyTripsScreen />
+				</Provider>
+			);
+
+			await act(async () => {
+				jest.advanceTimersByTime(100);
+			});
+
+			expect(getByTestId('icon-chatbubble-outline')).toBeTruthy();
+		});
+	});
+
+	describe('refresh functionality', () => {
+		it('triggers refresh on pull', async () => {
+			const store = createMockStore({ 
+				auth: { user: { uid: 'rider123' } },
+			});
+			const { UNSAFE_getByType } = render(
+				<Provider store={store}>
+					<MyTripsScreen />
+				</Provider>
+			);
+
+			await act(async () => {
+				jest.advanceTimersByTime(100);
+			});
+
+			const { ScrollView } = require('react-native');
+			const scrollView = UNSAFE_getByType(ScrollView);
+			
+			await act(async () => {
+				scrollView.props.refreshControl.props.onRefresh();
+				jest.advanceTimersByTime(500);
+			});
+
+			// Refresh completed
+			expect(scrollView).toBeTruthy();
 		});
 	});
 });

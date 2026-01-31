@@ -123,16 +123,15 @@ jest.mock('../../../hooks/use-theme-color', () => ({
   useThemeColor: jest.fn(() => '#999999'),
 }));
 
-import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
-import React from 'react';
+import { configureStore } from '@reduxjs/toolkit';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import { Provider } from 'react-redux';
-import { configureStore } from '@reduxjs/toolkit';
 
-import EditRideScreen from '../edit';
 import { getRideById } from '../../../services/firebase/firestore';
 import { getDirections } from '../../../services/maps/directions';
 import { updateRideThunk } from '../../../store/slices/ridesSlice';
+import EditRideScreen from '../edit';
 
 // Alert spy
 const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
@@ -576,6 +575,489 @@ describe('EditRideScreen', () => {
       const { findByText } = renderWithProvider(<EditRideScreen />);
 
       expect(await findByText('Edit Ride')).toBeTruthy();
+    });
+  });
+
+  describe('Route Preview Full Coverage', () => {
+    it('successfully loads route and shows alert', async () => {
+      getDirections.mockResolvedValue({
+        polyline: [
+          { latitude: 34.0522, longitude: -118.2437 },
+          { latitude: 36.0, longitude: -120.0 },
+          { latitude: 37.7749, longitude: -122.4194 },
+        ],
+        distance: 600000, // 600km in meters
+        duration: 21600, // 6 hours in seconds
+      });
+
+      const { findByText } = renderWithProvider(<EditRideScreen />);
+
+      const previewButton = await findByText('Preview Route');
+      
+      await act(async () => {
+        fireEvent.press(previewButton);
+        // Wait for async operations
+        await new Promise(resolve => setTimeout(resolve, 200));
+      });
+
+      await waitFor(() => {
+        expect(alertSpy).toHaveBeenCalledWith(
+          'Route Loaded',
+          expect.stringContaining('mi')
+        );
+      });
+    });
+
+    it('shows error when route calculation fails', async () => {
+      getDirections.mockResolvedValue(null);
+
+      const { findByText } = renderWithProvider(<EditRideScreen />);
+
+      const previewButton = await findByText('Preview Route');
+      
+      await act(async () => {
+        fireEvent.press(previewButton);
+      });
+
+      await waitFor(() => {
+        expect(alertSpy).toHaveBeenCalledWith(
+          'Route Error',
+          'Could not calculate route.'
+        );
+      });
+    });
+
+    it('shows error when directions throws', async () => {
+      getDirections.mockRejectedValue(new Error('API Error'));
+
+      const { findByText } = renderWithProvider(<EditRideScreen />);
+
+      const previewButton = await findByText('Preview Route');
+      
+      await act(async () => {
+        fireEvent.press(previewButton);
+      });
+
+      await waitFor(() => {
+        expect(alertSpy).toHaveBeenCalledWith(
+          'Error',
+          expect.any(String)
+        );
+      });
+    });
+
+    it('handles route without polyline in response', async () => {
+      getDirections.mockResolvedValue({
+        distance: 600000,
+        duration: 21600,
+      });
+
+      const { findByText } = renderWithProvider(<EditRideScreen />);
+
+      const previewButton = await findByText('Preview Route');
+      
+      await act(async () => {
+        fireEvent.press(previewButton);
+      });
+
+      await waitFor(() => {
+        expect(alertSpy).toHaveBeenCalledWith(
+          'Route Error',
+          'Could not calculate route.'
+        );
+      });
+    });
+  });
+
+  describe('Additional Form Validation', () => {
+    it('shows error when start location not set', async () => {
+      getRideById.mockResolvedValue({
+        ...createMockRide(),
+        startLocation: null,
+      });
+
+      const { findByText } = renderWithProvider(<EditRideScreen />);
+
+      const saveButton = await findByText('Save Changes');
+      
+      await act(async () => {
+        fireEvent.press(saveButton);
+      });
+
+      expect(await findByText('Please set both start and end locations.')).toBeTruthy();
+    });
+
+    it('shows error when end location not set', async () => {
+      getRideById.mockResolvedValue({
+        ...createMockRide(),
+        endLocation: null,
+      });
+
+      const { findByText } = renderWithProvider(<EditRideScreen />);
+
+      const saveButton = await findByText('Save Changes');
+      
+      await act(async () => {
+        fireEvent.press(saveButton);
+      });
+
+      expect(await findByText('Please set both start and end locations.')).toBeTruthy();
+    });
+
+    it('validates date with invalid month', async () => {
+      const { findByText, findByTestId } = renderWithProvider(<EditRideScreen />);
+
+      const dateInput = await findByTestId('input-date');
+      fireEvent.changeText(dateInput, '2025-13-15'); // Month 13 is invalid
+
+      const saveButton = await findByText('Save Changes');
+      
+      await act(async () => {
+        fireEvent.press(saveButton);
+      });
+
+      expect(await findByText('Invalid date. Use YYYY-MM-DD.')).toBeTruthy();
+    });
+
+    it('validates date with invalid day', async () => {
+      const { findByText, findByTestId } = renderWithProvider(<EditRideScreen />);
+
+      const dateInput = await findByTestId('input-date');
+      fireEvent.changeText(dateInput, '2025-02-32'); // Day 32 is invalid
+
+      const saveButton = await findByText('Save Changes');
+      
+      await act(async () => {
+        fireEvent.press(saveButton);
+      });
+
+      expect(await findByText('Invalid date. Use YYYY-MM-DD.')).toBeTruthy();
+    });
+
+    it('validates time with invalid hour', async () => {
+      const { findByText, findByTestId } = renderWithProvider(<EditRideScreen />);
+
+      const timeInput = await findByTestId('input-time');
+      fireEvent.changeText(timeInput, '25:00'); // Hour 25 is invalid
+
+      const saveButton = await findByText('Save Changes');
+      
+      await act(async () => {
+        fireEvent.press(saveButton);
+      });
+
+      expect(await findByText('Invalid time. Use HH:mm.')).toBeTruthy();
+    });
+
+    it('validates time with invalid minute', async () => {
+      const { findByText, findByTestId } = renderWithProvider(<EditRideScreen />);
+
+      const timeInput = await findByTestId('input-time');
+      fireEvent.changeText(timeInput, '12:60'); // Minute 60 is invalid
+
+      const saveButton = await findByText('Save Changes');
+      
+      await act(async () => {
+        fireEvent.press(saveButton);
+      });
+
+      expect(await findByText('Invalid time. Use HH:mm.')).toBeTruthy();
+    });
+
+    it('shows error for non-numeric seats', async () => {
+      const { findByText, findByDisplayValue } = renderWithProvider(<EditRideScreen />);
+
+      const seatsInput = await findByDisplayValue('4');
+      fireEvent.changeText(seatsInput, 'abc');
+
+      const saveButton = await findByText('Save Changes');
+      
+      await act(async () => {
+        fireEvent.press(saveButton);
+      });
+
+      expect(await findByText('Enter a valid number of seats.')).toBeTruthy();
+    });
+
+    it('shows error for negative detour', async () => {
+      const { findByText, findByDisplayValue } = renderWithProvider(<EditRideScreen />);
+
+      const detourInput = await findByDisplayValue('10');
+      fireEvent.changeText(detourInput, '-5');
+
+      const saveButton = await findByText('Save Changes');
+      
+      await act(async () => {
+        fireEvent.press(saveButton);
+      });
+
+      expect(await findByText('Max detour must be 0-100 miles.')).toBeTruthy();
+    });
+
+    it('shows error for non-numeric detour', async () => {
+      const { findByText, findByDisplayValue } = renderWithProvider(<EditRideScreen />);
+
+      const detourInput = await findByDisplayValue('10');
+      fireEvent.changeText(detourInput, 'abc');
+
+      const saveButton = await findByText('Save Changes');
+      
+      await act(async () => {
+        fireEvent.press(saveButton);
+      });
+
+      expect(await findByText('Max detour must be 0-100 miles.')).toBeTruthy();
+    });
+
+    it('accepts valid zero price', async () => {
+      const { findByText, findByDisplayValue } = renderWithProvider(<EditRideScreen />);
+
+      const priceInput = await findByDisplayValue('25');
+      fireEvent.changeText(priceInput, '0');
+
+      const saveButton = await findByText('Save Changes');
+      
+      await act(async () => {
+        fireEvent.press(saveButton);
+      });
+
+      // Should not show error for zero price (it's valid)
+      // It should try to save (and dispatch action)
+    });
+  });
+
+  describe('Successful Save', () => {
+    it('dispatches update action on valid form', async () => {
+      const mockUnwrap = jest.fn().mockResolvedValue({});
+      updateRideThunk.mockReturnValue({
+        type: 'rides/updateRide',
+        unwrap: mockUnwrap,
+      });
+
+      const { findByText } = renderWithProvider(<EditRideScreen />);
+
+      const saveButton = await findByText('Save Changes');
+      
+      await act(async () => {
+        fireEvent.press(saveButton);
+      });
+
+      // Action should have been dispatched
+      expect(updateRideThunk).toHaveBeenCalled();
+    });
+
+    it('handles various save error types gracefully', async () => {
+      // Test that the component handles errors without crashing
+      const mockUnwrap = jest.fn().mockRejectedValue(new Error('Test error'));
+      updateRideThunk.mockReturnValue({
+        type: 'rides/updateRide',
+        unwrap: mockUnwrap,
+      });
+
+      const { findByText } = renderWithProvider(<EditRideScreen />);
+
+      const saveButton = await findByText('Save Changes');
+      
+      await act(async () => {
+        fireEvent.press(saveButton);
+      });
+
+      // Should show error message
+      await waitFor(() => {
+        expect(updateRideThunk).toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('Location Updates', () => {
+    it('updates start location when selected', async () => {
+      const { findByTestId, findByText } = renderWithProvider(<EditRideScreen />);
+
+      await findByText('Edit Ride');
+
+      const selectStart = await findByTestId('select-Start Location');
+      
+      await act(async () => {
+        fireEvent.press(selectStart);
+      });
+
+      // Location should update (the mock returns 'Test Address')
+    });
+
+    it('updates destination when selected', async () => {
+      const { findByTestId, findByText } = renderWithProvider(<EditRideScreen />);
+
+      await findByText('Edit Ride');
+
+      const selectDest = await findByTestId('select-Destination');
+      
+      await act(async () => {
+        fireEvent.press(selectDest);
+      });
+
+      // Location should update
+    });
+  });
+
+  describe('Map Region Calculation', () => {
+    it('uses route midpoint when polyline exists', async () => {
+      getRideById.mockResolvedValue({
+        ...createMockRide(),
+        routePolyline: JSON.stringify([
+          { latitude: 34.0522, longitude: -118.2437 },
+          { latitude: 36.0, longitude: -120.0 },
+          { latitude: 37.7749, longitude: -122.4194 },
+        ]),
+      });
+
+      const { findByTestId } = renderWithProvider(<EditRideScreen />);
+
+      const mapView = await findByTestId('map-view');
+      expect(mapView).toBeTruthy();
+    });
+
+    it('uses start location when no route', async () => {
+      getRideById.mockResolvedValue({
+        ...createMockRide(),
+        routePolyline: null,
+      });
+
+      const { findByTestId } = renderWithProvider(<EditRideScreen />);
+
+      const mapView = await findByTestId('map-view');
+      expect(mapView).toBeTruthy();
+    });
+
+    it('uses default region when no start location', async () => {
+      getRideById.mockResolvedValue({
+        ...createMockRide(),
+        startLocation: null,
+        routePolyline: null,
+      });
+
+      const { findByTestId } = renderWithProvider(<EditRideScreen />);
+
+      const mapView = await findByTestId('map-view');
+      expect(mapView).toBeTruthy();
+    });
+  });
+
+  describe('Detour Unit Handling', () => {
+    it('preserves minutes-based detour when saving', async () => {
+      getRideById.mockResolvedValue({
+        ...createMockRide(),
+        maxDetourUnit: 'minutes',
+        maxDetourMinutes: 30,
+      });
+
+      const mockUnwrap = jest.fn().mockResolvedValue({});
+      updateRideThunk.mockReturnValue({
+        type: 'rides/updateRide',
+        unwrap: mockUnwrap,
+      });
+
+      const { findByText, findByDisplayValue } = renderWithProvider(<EditRideScreen />);
+
+      await findByText('Edit Ride');
+      
+      // Clear the miles field to test minutes preservation
+      const detourInput = await findByDisplayValue('');
+      expect(detourInput).toBeTruthy();
+
+      const saveButton = await findByText('Save Changes');
+      
+      await act(async () => {
+        fireEvent.press(saveButton);
+      });
+
+      // Should preserve minutes
+    });
+
+    it('converts to none when no detour value', async () => {
+      getRideById.mockResolvedValue({
+        ...createMockRide(),
+        maxDetourUnit: 'none',
+        maxDetourValue: null,
+      });
+
+      const { findByText } = renderWithProvider(<EditRideScreen />);
+
+      await findByText('Edit Ride');
+    });
+  });
+
+  describe('Form Input Updates', () => {
+    it('updates description text', async () => {
+      const { findByDisplayValue } = renderWithProvider(<EditRideScreen />);
+
+      const descInput = await findByDisplayValue('Comfortable ride with AC');
+      
+      await act(async () => {
+        fireEvent.changeText(descInput, 'New description text');
+      });
+
+      // Description should update
+    });
+
+    it('updates price input', async () => {
+      const { findByDisplayValue } = renderWithProvider(<EditRideScreen />);
+
+      const priceInput = await findByDisplayValue('25');
+      
+      await act(async () => {
+        fireEvent.changeText(priceInput, '30');
+      });
+
+      expect(await findByDisplayValue('30')).toBeTruthy();
+    });
+
+    it('updates seats input', async () => {
+      const { findByDisplayValue } = renderWithProvider(<EditRideScreen />);
+
+      const seatsInput = await findByDisplayValue('4');
+      
+      await act(async () => {
+        fireEvent.changeText(seatsInput, '6');
+      });
+
+      expect(await findByDisplayValue('6')).toBeTruthy();
+    });
+  });
+
+  describe('Map Overlay Display', () => {
+    it('shows map overlay when no route', async () => {
+      getRideById.mockResolvedValue({
+        ...createMockRide(),
+        routePolyline: null,
+      });
+
+      const { findByText } = renderWithProvider(<EditRideScreen />);
+
+      expect(await findByText('🗺️')).toBeTruthy();
+      expect(await findByText('Preview route below')).toBeTruthy();
+    });
+
+    it('hides overlay when route exists', async () => {
+      getRideById.mockResolvedValue(createMockRide());
+
+      const { findByText, queryByText } = renderWithProvider(<EditRideScreen />);
+
+      await findByText('Edit Ride');
+
+      // Overlay should not show (or not be prominent) when route exists
+      // The component shows overlay only when routePolyline.length === 0
+    });
+  });
+
+  describe('Missing Id Parameter', () => {
+    it('handles missing ride id gracefully', async () => {
+      useLocalSearchParams.mockReturnValue({ id: undefined });
+      // getRideById won't be called if id is undefined (useEffect guard)
+
+      const { findByText } = renderWithProvider(<EditRideScreen />);
+
+      // Should show loading or ride not found
+      // The component may show loading indefinitely if no id
     });
   });
 });

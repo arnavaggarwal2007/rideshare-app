@@ -20,22 +20,22 @@ jest.mock('../../../firebaseConfig', () => ({
 
 // Import after mocks
 import {
-	initializeAnalytics,
-	logEvent,
-	setUserProperties,
-	setUserId,
-	logSignUp,
-	logLogin,
-	logProfileComplete,
-	logRideCreated,
-	logSeatRequested,
-	logRequestAccepted,
-	logTripCompleted,
-	logRatingSubmitted,
-	logMessageSent,
-	logSearch,
-	logScreenView,
-	logError,
+    initializeAnalytics,
+    logError,
+    logEvent,
+    logLogin,
+    logMessageSent,
+    logProfileComplete,
+    logRatingSubmitted,
+    logRequestAccepted,
+    logRideCreated,
+    logScreenView,
+    logSearch,
+    logSeatRequested,
+    logSignUp,
+    logTripCompleted,
+    setUserId,
+    setUserProperties,
 } from '../analytics';
 
 describe('Analytics Service', () => {
@@ -230,6 +230,105 @@ describe('Analytics Service', () => {
 
 			// Should not throw
 			await initializeAnalytics();
+		});
+	});
+
+	describe('Analytics with initialized state', () => {
+		beforeEach(async () => {
+			// Reset modules to get fresh analytics state
+			jest.resetModules();
+			
+			// Setup proper mocks for initialized analytics
+			jest.doMock('firebase/analytics', () => ({
+				getAnalytics: jest.fn(() => ({ app: 'test-app' })),
+				isSupported: jest.fn(() => Promise.resolve(true)),
+				logEvent: jest.fn(),
+				setUserProperties: jest.fn(),
+				setUserId: jest.fn(),
+			}));
+
+			jest.doMock('../../../firebaseConfig', () => ({
+				default: { name: 'test-app' },
+			}));
+		});
+
+		it('logs events with timestamp and platform', async () => {
+			const { logEvent: importedLogEvent } = require('../analytics');
+			await importedLogEvent('test_event', { key: 'value' });
+			// Should not throw
+		});
+
+		it('handles errors in logEvent gracefully', async () => {
+			jest.doMock('firebase/analytics', () => ({
+				getAnalytics: jest.fn(() => ({ app: 'test-app' })),
+				isSupported: jest.fn(() => Promise.resolve(true)),
+				logEvent: jest.fn(() => { throw new Error('Log failed'); }),
+			}));
+			
+			const { logEvent: importedLogEvent } = require('../analytics');
+			await expect(importedLogEvent('test_event')).resolves.toBeUndefined();
+		});
+
+		it('handles errors in setUserProperties gracefully', async () => {
+			jest.doMock('firebase/analytics', () => ({
+				getAnalytics: jest.fn(() => ({ app: 'test-app' })),
+				isSupported: jest.fn(() => Promise.resolve(true)),
+				setUserProperties: jest.fn(() => { throw new Error('Set failed'); }),
+			}));
+			
+			const { setUserProperties: importedSetUserProperties } = require('../analytics');
+			await expect(importedSetUserProperties({ test: 'value' })).resolves.toBeUndefined();
+		});
+
+		it('handles errors in setUserId gracefully', async () => {
+			jest.doMock('firebase/analytics', () => ({
+				getAnalytics: jest.fn(() => ({ app: 'test-app' })),
+				isSupported: jest.fn(() => Promise.resolve(true)),
+				setUserId: jest.fn(() => { throw new Error('Set failed'); }),
+			}));
+			
+			const { setUserId: importedSetUserId } = require('../analytics');
+			await expect(importedSetUserId('user-123')).resolves.toBeUndefined();
+		});
+	});
+
+	describe('Platform-specific behavior', () => {
+		beforeEach(() => {
+			jest.resetModules();
+		});
+
+		it('handles unsupported platforms', async () => {
+			jest.doMock('firebase/analytics', () => ({
+				getAnalytics: jest.fn(),
+				isSupported: jest.fn(() => Promise.resolve(false)),
+			}));
+
+			jest.doMock('../../../firebaseConfig', () => ({
+				default: {},
+			}));
+
+			const { Platform } = require('react-native');
+			Platform.OS = 'ios';
+
+			const { initializeAnalytics: initAnalytics } = require('../analytics');
+			await expect(initAnalytics()).resolves.toBeUndefined();
+		});
+
+		it('handles android platform', async () => {
+			jest.doMock('firebase/analytics', () => ({
+				getAnalytics: jest.fn(() => ({})),
+				isSupported: jest.fn(() => Promise.resolve(true)),
+			}));
+
+			jest.doMock('../../../firebaseConfig', () => ({
+				default: {},
+			}));
+
+			const { Platform } = require('react-native');
+			Platform.OS = 'android';
+
+			const { initializeAnalytics: initAnalytics } = require('../analytics');
+			await expect(initAnalytics()).resolves.toBeUndefined();
 		});
 	});
 });

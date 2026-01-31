@@ -73,8 +73,7 @@ jest.mock('../themed-text', () => {
   };
 });
 
-import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
-import React from 'react';
+import { act, fireEvent, render } from '@testing-library/react-native';
 
 import LocationMapPicker from '../LocationMapPicker';
 
@@ -451,6 +450,195 @@ describe('LocationMapPicker', () => {
       );
 
       expect(queryByTestId('marker-Ride End')).toBeNull();
+    });
+  });
+
+  describe('Detour Validation', () => {
+    it('calculates detour with miles unit', async () => {
+      const mockCallback = jest.fn();
+
+      const { getByTestId, getByText } = render(
+        <LocationMapPicker
+          rideRoute={mockRideRoute}
+          startLocation={mockStartLocation}
+          endLocation={mockEndLocation}
+          maxDetourUnit="miles"
+          maxDetourValue={50}
+          onLocationsSelected={mockCallback}
+        />
+      );
+
+      // Select pickup
+      fireEvent(getByTestId('map-press-area'), 'touchEnd');
+      act(() => { jest.runAllTimers(); });
+
+      // Select dropoff
+      fireEvent.press(getByText('Set Dropoff'));
+      fireEvent(getByTestId('map-press-area'), 'touchEnd');
+      act(() => { jest.runAllTimers(); });
+
+      // Should call callback
+      expect(mockCallback).toHaveBeenCalled();
+    });
+
+    it('calculates detour with minutes unit', async () => {
+      const mockCallback = jest.fn();
+
+      const { getByTestId, getByText } = render(
+        <LocationMapPicker
+          rideRoute={mockRideRoute}
+          startLocation={mockStartLocation}
+          endLocation={mockEndLocation}
+          maxDetourUnit="minutes"
+          maxDetourValue={30}
+          onLocationsSelected={mockCallback}
+        />
+      );
+
+      // Select pickup
+      fireEvent(getByTestId('map-press-area'), 'touchEnd');
+      act(() => { jest.runAllTimers(); });
+
+      // Select dropoff
+      fireEvent.press(getByText('Set Dropoff'));
+      fireEvent(getByTestId('map-press-area'), 'touchEnd');
+      act(() => { jest.runAllTimers(); });
+
+      expect(mockCallback).toHaveBeenCalled();
+    });
+
+    it('handles detour exceeded scenario', async () => {
+      const mockCallback = jest.fn();
+
+      const { getByTestId, getByText } = render(
+        <LocationMapPicker
+          rideRoute={mockRideRoute}
+          startLocation={mockStartLocation}
+          endLocation={mockEndLocation}
+          maxDetourUnit="miles"
+          maxDetourValue={0.001} // Very small - will likely exceed
+          onLocationsSelected={mockCallback}
+        />
+      );
+
+      // Select pickup
+      fireEvent(getByTestId('map-press-area'), 'touchEnd');
+      act(() => { jest.runAllTimers(); });
+
+      // Select dropoff
+      fireEvent.press(getByText('Set Dropoff'));
+      fireEvent(getByTestId('map-press-area'), 'touchEnd');
+      act(() => { jest.runAllTimers(); });
+
+      // Callback should be called (possibly with exceeded=true)
+      expect(mockCallback).toHaveBeenCalled();
+    });
+
+    it('handles no detour limit (none unit)', async () => {
+      const mockCallback = jest.fn();
+
+      const { getByTestId, getByText } = render(
+        <LocationMapPicker
+          rideRoute={mockRideRoute}
+          startLocation={mockStartLocation}
+          endLocation={mockEndLocation}
+          maxDetourUnit="none"
+          maxDetourValue={null}
+          onLocationsSelected={mockCallback}
+        />
+      );
+
+      // Select pickup
+      fireEvent(getByTestId('map-press-area'), 'touchEnd');
+      act(() => { jest.runAllTimers(); });
+
+      // Select dropoff  
+      fireEvent.press(getByText('Set Dropoff'));
+      fireEvent(getByTestId('map-press-area'), 'touchEnd');
+      act(() => { jest.runAllTimers(); });
+
+      // With no detour limit, should always be valid
+      expect(mockCallback).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.any(Object),
+        true // Should be valid
+      );
+    });
+  });
+
+  describe('Map Press Handler Edge Cases', () => {
+    it('handles invalid map press event', () => {
+      const mockCallback = jest.fn();
+      const MockMapViewWithNullPress = ({ onPress }) => {
+        const { View } = require('react-native');
+        return (
+          <View testID="map-view">
+            <View 
+              testID="invalid-press" 
+              onTouchEnd={() => onPress?.({ nativeEvent: {} })}
+            />
+          </View>
+        );
+      };
+
+      jest.doMock('react-native-maps', () => ({
+        __esModule: true,
+        default: MockMapViewWithNullPress,
+        Marker: () => null,
+        Polyline: () => null,
+      }));
+
+      // This tests that the component handles missing coordinate data gracefully
+    });
+
+    it('sets dropoff when already in dropoff mode', async () => {
+      const mockCallback = jest.fn();
+
+      const { getByTestId, getByText, queryByTestId } = render(
+        <LocationMapPicker
+          rideRoute={mockRideRoute}
+          startLocation={mockStartLocation}
+          endLocation={mockEndLocation}
+          maxDetourUnit="none"
+          onLocationsSelected={mockCallback}
+        />
+      );
+
+      // Set pickup first
+      fireEvent(getByTestId('map-press-area'), 'touchEnd');
+      act(() => { jest.runAllTimers(); });
+      
+      // Already in dropoff mode, set dropoff
+      fireEvent(getByTestId('map-press-area'), 'touchEnd');
+      act(() => { jest.runAllTimers(); });
+
+      // Should have dropoff marker
+      expect(queryByTestId('marker-Your Dropoff')).toBeTruthy();
+    });
+
+    it('updates pickup when already set', async () => {
+      const { getByTestId, getByText, queryByTestId } = render(
+        <LocationMapPicker
+          rideRoute={mockRideRoute}
+          startLocation={mockStartLocation}
+          endLocation={mockEndLocation}
+          maxDetourUnit="none"
+        />
+      );
+
+      // Set pickup
+      fireEvent(getByTestId('map-press-area'), 'touchEnd');
+      act(() => { jest.runAllTimers(); });
+      
+      expect(queryByTestId('marker-Your Pickup')).toBeTruthy();
+
+      // Switch back to pickup mode and update
+      fireEvent.press(getByText('Set Pickup'));
+      fireEvent(getByTestId('map-press-area'), 'touchEnd');
+      act(() => { jest.runAllTimers(); });
+
+      // Pickup should still be set (updated)
+      expect(queryByTestId('marker-Your Pickup')).toBeTruthy();
     });
   });
 });

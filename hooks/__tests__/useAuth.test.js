@@ -422,5 +422,46 @@ describe('useAuth hook', () => {
 
 			expect(result.current.profileComplete).toBe(false);
 		});
+
+		it('refreshProfile handles error gracefully', async () => {
+			const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+			const mockUser = { uid: 'user123' };
+			
+			// First call succeeds for initial auth
+			mockGetDoc.mockResolvedValueOnce({
+				exists: () => true,
+				data: () => ({
+					profileComplete: true,
+					name: 'John',
+					school: 'UCLA',
+					major: 'CS',
+					graduationYear: '2024',
+				}),
+			});
+
+			mockOnAuthStateChanged.mockImplementation((auth, callback) => {
+				callback(mockUser);
+				return unsubscribeMock;
+			});
+
+			const { result } = renderHook(() => useAuth());
+
+			await waitFor(() => {
+				expect(result.current.loading).toBe(false);
+			});
+
+			// Second call for refreshProfile fails
+			mockGetDoc.mockRejectedValueOnce(new Error('Network error'));
+
+			// Now refresh profile - should fail and handle error
+			await act(async () => {
+				await result.current.refreshProfile('user123');
+			});
+
+			// Profile complete should be false due to error handling
+			expect(result.current.profileComplete).toBe(false);
+			
+			consoleSpy.mockRestore();
+		});
 	});
 });

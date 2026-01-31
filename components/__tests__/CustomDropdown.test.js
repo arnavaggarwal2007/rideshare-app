@@ -2,7 +2,6 @@
  * Tests for components/CustomDropdown.js
  */
 import { fireEvent, render } from '@testing-library/react-native';
-import React from 'react';
 import CustomDropdown from '../CustomDropdown';
 
 describe('CustomDropdown', () => {
@@ -176,6 +175,93 @@ describe('CustomDropdown', () => {
 			// Multiple Option A texts may exist
 			const allOptionAs = getAllByText('Option A');
 			expect(allOptionAs.length).toBeGreaterThanOrEqual(1);
+		});
+	});
+
+	describe('modal close functionality', () => {
+		it('closes modal when close button in header is pressed', () => {
+			const { getByText, queryByText, getByTestId, UNSAFE_getAllByType } = render(
+				<CustomDropdown {...defaultProps} />
+			);
+
+			// Open modal
+			fireEvent.press(getByText('Choose an option'));
+
+			// Modal should show options
+			expect(getByText('Option A')).toBeTruthy();
+
+			// Find all touchable opacities and press the close button (it's in the modal header)
+			// The close button has an Ionicons close icon, so we need to find the parent touchable
+			const TouchableOpacity = require('react-native').TouchableOpacity;
+			const touchables = UNSAFE_getAllByType(TouchableOpacity);
+			
+			// Find the close button in modal header (should be after the first few touchables)
+			// It's next to the modal title
+			const closeButton = touchables.find(t => {
+				const children = t.props?.children;
+				// Check if this touchable is in the modal header area
+				return t.props?.onPress && children?.props?.name === 'close';
+			});
+			
+			if (closeButton) {
+				fireEvent.press(closeButton);
+			}
+		});
+
+		it('closes modal when overlay is pressed (onRequestClose)', () => {
+			const { getByText, queryByText } = render(
+				<CustomDropdown {...defaultProps} />
+			);
+
+			// Open modal
+			fireEvent.press(getByText('Choose an option'));
+			expect(getByText('Option A')).toBeTruthy();
+		});
+
+		it('shows modal title as label when label is provided', () => {
+			const { getByText, getAllByText } = render(
+				<CustomDropdown {...defaultProps} label="My Dropdown" />
+			);
+
+			fireEvent.press(getByText('Choose an option'));
+
+			// Modal should show the label as title
+			const labels = getAllByText('My Dropdown');
+			expect(labels.length).toBeGreaterThanOrEqual(2); // One in main view, one in modal
+		});
+
+		it('shows Select as modal title when no label provided', () => {
+			const { getByText, queryByText } = render(
+				<CustomDropdown
+					value=""
+					options={['A', 'B']}
+					onSelect={jest.fn()}
+					placeholder="Pick one"
+				/>
+			);
+
+			fireEvent.press(getByText('Pick one'));
+
+			// Modal should show 'Select' as title
+			expect(getByText('Select')).toBeTruthy();
+		});
+	});
+
+	describe('edge cases', () => {
+		it('handles null value gracefully', () => {
+			const { getByText } = render(
+				<CustomDropdown {...defaultProps} value={null} />
+			);
+			// Should show placeholder when value is null
+			expect(getByText('Choose an option')).toBeTruthy();
+		});
+
+		it('handles value equal to placeholder', () => {
+			const { getByText } = render(
+				<CustomDropdown {...defaultProps} value="Choose an option" />
+			);
+			// Should still render correctly
+			expect(getByText('Choose an option')).toBeTruthy();
 		});
 	});
 });

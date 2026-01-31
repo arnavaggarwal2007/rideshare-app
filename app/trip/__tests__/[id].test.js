@@ -71,18 +71,17 @@ jest.mock('@expo/vector-icons', () => ({
 }));
 
 // Now import testing utilities and component
-import React from 'react';
-import { render, fireEvent, act } from '@testing-library/react-native';
+import { configureStore } from '@reduxjs/toolkit';
+import { act, fireEvent, render } from '@testing-library/react-native';
 import { Alert, Share } from 'react-native';
+import { Provider } from 'react-redux';
 
 // Unmock react-redux since jest.setup.js mocks it globally
 jest.unmock('react-redux');
-import { Provider } from 'react-redux';
-import { configureStore } from '@reduxjs/toolkit';
 
-import TripDetailsScreen from '../[id]';
-import { getTripById, subscribeToTrip } from '../../../services/firebase/firestore';
 import { router, useLocalSearchParams } from 'expo-router';
+import { getTripById, subscribeToTrip } from '../../../services/firebase/firestore';
+import TripDetailsScreen from '../[id]';
 
 // Spy on Alert.alert
 const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
@@ -810,6 +809,275 @@ describe('TripDetailsScreen', () => {
       const { findByText } = renderWithProvider(<TripDetailsScreen />);
 
       expect(await findByText('Trip Details')).toBeTruthy();
+    });
+  });
+
+  describe('Cancel confirmation flow', () => {
+    it('dispatches updateTripStatusThunk when cancel confirmed', async () => {
+      const { updateTripStatusThunk } = require('../../../store/slices/tripsSlice');
+      
+      getTripById.mockResolvedValue(createMockTrip({
+        riderId: 'user-123',
+        status: 'confirmed',
+        departureTimestamp: {
+          toDate: () => new Date(Date.now() + 2 * 60 * 60 * 1000),
+        },
+      }));
+
+      const { findByText, findAllByText } = renderWithProvider(<TripDetailsScreen />);
+
+      // Open cancel modal
+      const cancelButton = await findByText('Cancel Trip');
+      fireEvent.press(cancelButton);
+
+      // Find all Cancel Trip buttons and get the one in the modal (second one)
+      const cancelButtons = await findAllByText('Cancel Trip');
+      const confirmCancelButton = cancelButtons[cancelButtons.length - 1]; // Last one is in modal
+      
+      await act(async () => {
+        fireEvent.press(confirmCancelButton);
+      });
+
+      expect(updateTripStatusThunk).toHaveBeenCalled();
+    });
+  });
+
+  describe('Share content', () => {
+    it('shares trip details when share button pressed', async () => {
+      getTripById.mockResolvedValue(createMockTrip());
+
+      const { findByText } = renderWithProvider(<TripDetailsScreen />);
+
+      const shareButton = await findByText('Share Trip');
+      
+      await act(async () => {
+        fireEvent.press(shareButton);
+      });
+
+      expect(shareSpy).toHaveBeenCalled();
+    });
+
+    it('handles share error gracefully', async () => {
+      shareSpy.mockRejectedValueOnce(new Error('Share failed'));
+      
+      getTripById.mockResolvedValue(createMockTrip());
+
+      const { findByText } = renderWithProvider(<TripDetailsScreen />);
+
+      const shareButton = await findByText('Share Trip');
+      
+      await act(async () => {
+        fireEvent.press(shareButton);
+      });
+
+      // Should not crash - error is handled
+      expect(await findByText('Trip Details')).toBeTruthy();
+    });
+
+    it('handles share dismissal gracefully', async () => {
+      shareSpy.mockResolvedValueOnce({ action: 'dismissedAction' });
+      
+      getTripById.mockResolvedValue(createMockTrip());
+
+      const { findByText } = renderWithProvider(<TripDetailsScreen />);
+
+      const shareButton = await findByText('Share Trip');
+      
+      await act(async () => {
+        fireEvent.press(shareButton);
+      });
+
+      // Should not crash
+      expect(await findByText('Trip Details')).toBeTruthy();
+    });
+  });
+
+  describe('Message Button', () => {
+    it('creates new chat when chatId is null', async () => {
+      const { createChatThunk } = require('../../../store/slices/chatsSlice');
+      createChatThunk.mockReturnValue({ type: 'chats/createChat', payload: { id: 'new-chat-id' } });
+      
+      getTripById.mockResolvedValue(createMockTrip({ chatId: null }));
+
+      const { findByText } = renderWithProvider(<TripDetailsScreen />);
+
+      const messageButton = await findByText('Message');
+      
+      await act(async () => {
+        fireEvent.press(messageButton);
+      });
+
+      expect(createChatThunk).toHaveBeenCalled();
+    });
+  });
+
+  describe('Cancel Trip Validations', () => {
+    it('shows error for trip without departure time', async () => {
+      getTripById.mockResolvedValue(createMockTrip({
+        riderId: 'user-123',
+        status: 'confirmed',
+        departureTimestamp: null,
+      }));
+
+      const { findByText } = renderWithProvider(<TripDetailsScreen />);
+
+      const cancelButton = await findByText('Cancel Trip');
+      fireEvent.press(cancelButton);
+
+      expect(alertSpy).toHaveBeenCalledWith('Error', 'Trip departure time not set');
+    });
+
+    it('shows error for invalid departure time format', async () => {
+      getTripById.mockResolvedValue(createMockTrip({
+        riderId: 'user-123',
+        status: 'confirmed',
+        departureTimestamp: 'invalid-date',
+      }));
+
+      const { findByText } = renderWithProvider(<TripDetailsScreen />);
+
+      const cancelButton = await findByText('Cancel Trip');
+      fireEvent.press(cancelButton);
+
+      expect(alertSpy).toHaveBeenCalledWith('Error', 'Invalid trip departure time');
+    });
+
+    it('shows error when trying to cancel non-confirmed trip', async () => {
+      getTripById.mockResolvedValue(createMockTrip({
+        riderId: 'user-123',
+        status: 'in-progress',
+        departureTimestamp: {
+          toDate: () => new Date(Date.now() + 2 * 60 * 60 * 1000),
+        },
+      }));
+
+      const { findByText, queryByText } = renderWithProvider(<TripDetailsScreen />);
+
+      await findByText('Trip Details');
+      // Cancel button should not show for in-progress trips
+      expect(queryByText('Cancel Trip')).toBeNull();
+    });
+  });
+
+  describe('Helper Functions', () => {
+    it('displays correct status style for unknown status', async () => {
+      getTripById.mockResolvedValue(createMockTrip({ status: 'pending' }));
+
+      const { findByText } = renderWithProvider(<TripDetailsScreen />);
+
+      // Pending status should still render
+      expect(await findByText('Pending')).toBeTruthy();
+    });
+
+    it('formats timestamp correctly', async () => {
+      getTripById.mockResolvedValue(createMockTrip({
+        statusHistory: [
+          { status: 'confirmed', timestamp: new Date('2024-06-15T14:30:00') },
+        ],
+      }));
+
+      const { findByText } = renderWithProvider(<TripDetailsScreen />);
+
+      await findByText('Status History');
+      // Timestamp should be formatted as DD/MM HH:MM
+      expect(await findByText('15/06 14:30')).toBeTruthy();
+    });
+
+    it('handles missing timestamp in history', async () => {
+      getTripById.mockResolvedValue(createMockTrip({
+        statusHistory: [
+          { status: 'confirmed', timestamp: null },
+        ],
+      }));
+
+      const { findByText } = renderWithProvider(<TripDetailsScreen />);
+
+      expect(await findByText('Status History')).toBeTruthy();
+    });
+  });
+
+  describe('Complete Trip Button', () => {
+    it('shows error when non-driver tries to complete trip', async () => {
+      getTripById.mockResolvedValue(createMockTrip({
+        driverId: 'other-driver',
+        riderId: 'user-123',
+        status: 'in-progress',
+      }));
+
+      const { findByText, queryByText } = renderWithProvider(<TripDetailsScreen />);
+
+      await findByText('Trip Details');
+      // Complete trip button should not show for non-driver
+      expect(queryByText('Complete Trip')).toBeNull();
+    });
+  });
+
+  describe('Rider Confirm Completion', () => {
+    it('shows error when non-rider tries to confirm', async () => {
+      getTripById.mockResolvedValue(createMockTrip({
+        driverId: 'user-123',
+        riderId: 'other-rider',
+        status: 'completed',
+        riderConfirmedCompletion: false,
+      }));
+
+      const { findByText, queryByText } = renderWithProvider(<TripDetailsScreen />);
+
+      await findByText('Trip Details');
+      // Confirm completion button should not show for driver
+      expect(queryByText('Confirm Completion')).toBeNull();
+    });
+  });
+
+  describe('Map Display', () => {
+    it('renders fallback straight line when no polyline', async () => {
+      getTripById.mockResolvedValue(createMockTrip({ 
+        routePolyline: null,
+        startLocation: {
+          placeName: 'Start',
+          coordinates: { latitude: 34.0, longitude: -118.0 },
+        },
+        endLocation: {
+          placeName: 'End',
+          coordinates: { latitude: 35.0, longitude: -119.0 },
+        },
+      }));
+
+      const { findByText, getByTestId } = renderWithProvider(<TripDetailsScreen />);
+
+      await findByText('Trip Details');
+      expect(getByTestId('map-view')).toBeTruthy();
+    });
+  });
+
+  describe('Locations Section', () => {
+    it('shows Unknown for missing location placeName', async () => {
+      getTripById.mockResolvedValue(createMockTrip({
+        startLocation: { coordinates: { latitude: 34.0, longitude: -118.0 } },
+        endLocation: { coordinates: { latitude: 35.0, longitude: -119.0 } },
+      }));
+
+      const { findAllByText } = renderWithProvider(<TripDetailsScreen />);
+
+      const unknownTexts = await findAllByText('Unknown');
+      expect(unknownTexts.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Driver Rating Display', () => {
+    it('hides driver rating when zero or undefined', async () => {
+      getTripById.mockResolvedValue(createMockTrip({
+        driverRating: 0,
+        riderRating: 4.5,
+      }));
+
+      const { findByText, queryByText } = renderWithProvider(<TripDetailsScreen />);
+
+      await findByText('Participants');
+      // Driver rating should not show
+      expect(queryByText('0.0')).toBeNull();
+      // Rider rating should show
+      expect(await findByText('4.5')).toBeTruthy();
     });
   });
 });

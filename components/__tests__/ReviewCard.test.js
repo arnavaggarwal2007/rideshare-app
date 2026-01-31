@@ -314,4 +314,38 @@ describe('ReviewCard Component', () => {
       expect(screen.getByText('John Doe')).toBeTruthy(); // Component renders
     });
   });
+
+  describe('Date Formatting Edge Cases', () => {
+    it('handles invalid timestamp gracefully', () => {
+      const invalidDateReview = {
+        ...mockReview,
+        createdAt: { toDate: () => { throw new Error('Invalid date'); } },
+      };
+      render(<ReviewCard review={invalidDateReview} />);
+      // Component should still render, date will be empty
+      expect(screen.getByText('John Doe')).toBeTruthy();
+    });
+
+    it('handles string timestamp correctly', () => {
+      const stringDateReview = {
+        ...mockReview,
+        createdAt: new Date().toISOString(),
+      };
+      render(<ReviewCard review={stringDateReview} />);
+      expect(screen.getByText('Today')).toBeTruthy();
+    });
+  });
+
+  describe('LayoutAnimation', () => {
+    it('handles text expansion toggle', () => {
+      render(<ReviewCard review={mockLongReview} expandable={true} />);
+      
+      // Find and press "Read more"
+      const readMore = screen.getByText('Read more');
+      fireEvent.press(readMore);
+      
+      // Should now show "Show less" (matches component text)
+      expect(screen.getByText('Show less')).toBeTruthy();
+    });
+  });
 });

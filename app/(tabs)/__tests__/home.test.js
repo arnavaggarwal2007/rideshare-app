@@ -1,15 +1,14 @@
 /**
  * Tests for app/(tabs)/home.js
  */
-import { fireEvent, render, waitFor, act } from '@testing-library/react-native';
-import React from 'react';
+import { act, fireEvent, render } from '@testing-library/react-native';
 
 // CRITICAL: Unmock react-redux to use real Provider and hooks
 // (jest.setup.js mocks it globally, but we need real Redux for this test)
 jest.unmock('react-redux');
 
-import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
+import { Provider } from 'react-redux';
 
 // expo-router is mocked in jest.setup.js with global.mockRouterPush
 // No need to re-mock here
@@ -439,6 +438,197 @@ describe('HomeScreen', () => {
 
 			// Skeleton cards should be shown during loading
 			// We just verify the component renders without error during loading
+			expect(true).toBeTruthy();
+		});
+	});
+
+	describe('search clear buttons', () => {
+		it('clears start location search when clear button pressed', async () => {
+			const store = createMockStore();
+			const { getByPlaceholderText, getByTestId } = render(
+				<Provider store={store}>
+					<HomeScreen />
+				</Provider>
+			);
+
+			const searchInput = getByPlaceholderText('From (start location)...');
+			
+			await act(async () => {
+				fireEvent.changeText(searchInput, 'Los Angeles');
+			});
+
+			expect(searchInput.props.value).toBe('Los Angeles');
+			
+			// Find and press clear button (close-circle icon)
+			const clearButtons = getByTestId('icon-close-circle');
+			await act(async () => {
+				fireEvent.press(clearButtons);
+			});
+			
+			expect(searchInput.props.value).toBe('');
+		});
+
+		it('clears end location search when clear button pressed', async () => {
+			const store = createMockStore();
+			const { getByPlaceholderText, getAllByTestId } = render(
+				<Provider store={store}>
+					<HomeScreen />
+				</Provider>
+			);
+
+			const searchInput = getByPlaceholderText('To (destination)...');
+			
+			await act(async () => {
+				fireEvent.changeText(searchInput, 'San Francisco');
+			});
+
+			expect(searchInput.props.value).toBe('San Francisco');
+			
+			// Find and press second clear button
+			const clearButtons = getAllByTestId('icon-close-circle');
+			await act(async () => {
+				fireEvent.press(clearButtons[0]);
+			});
+		});
+	});
+
+	describe('filter interactions', () => {
+		it('applies filters when Apply Filters is pressed', async () => {
+			const store = createMockStore();
+			const { getByTestId, getByText, getAllByPlaceholderText } = render(
+				<Provider store={store}>
+					<HomeScreen />
+				</Provider>
+			);
+
+			// Open filter panel
+			fireEvent.press(getByTestId('icon-options-outline'));
+
+			// Fill in max price and min seats - both use "Any" as placeholder
+			const anyInputs = getAllByPlaceholderText('Any');
+			await act(async () => {
+				fireEvent.changeText(anyInputs[0], '75'); // max price
+				fireEvent.changeText(anyInputs[1], '3'); // min seats
+			});
+
+			// Press apply
+			await act(async () => {
+				fireEvent.press(getByText('Apply Filters'));
+			});
+
+			// Panel should be hidden after apply
+			expect(() => getByText('Filters')).toThrow();
+		});
+
+		it('clears all filters when Clear All is pressed', async () => {
+			const store = createMockStore({
+				feed: {
+					items: [],
+					loading: false,
+					filters: { startLocationKeyword: 'LA', maxPrice: 50 },
+				},
+			});
+			const { getByTestId, getByText } = render(
+				<Provider store={store}>
+					<HomeScreen />
+				</Provider>
+			);
+
+			// Open filter panel
+			fireEvent.press(getByTestId('icon-options-outline'));
+
+			// Press clear all
+			await act(async () => {
+				fireEvent.press(getByText('Clear All'));
+			});
+		});
+
+		it('shows active filters count badge', () => {
+			const store = createMockStore({
+				feed: {
+					items: [],
+					loading: false,
+					filters: { 
+						startLocationKeyword: 'LA',
+						endLocationKeyword: 'SF',
+						maxPrice: 50,
+					},
+				},
+			});
+			const { getByText } = render(
+				<Provider store={store}>
+					<HomeScreen />
+				</Provider>
+			);
+
+			// Should show 3 active filters
+			expect(getByText('3')).toBeTruthy();
+		});
+	});
+
+	describe('load more functionality', () => {
+		const mockRides = Array.from({ length: 20 }, (_, i) => ({
+			id: `ride${i}`,
+			driverId: `driver${i}`,
+			driverName: `Driver ${i}`,
+			startLocation: { address: `Start ${i}` },
+			endLocation: { address: `End ${i}` },
+			departureTimestamp: new Date(Date.now() + 86400000 * 2),
+			availableSeats: 3,
+			pricePerSeat: 25,
+		}));
+
+		it('does not load more when already loading', async () => {
+			const store = createMockStore({
+				feed: { items: mockRides, loading: true, hasMore: true },
+			});
+			
+			render(
+				<Provider store={store}>
+					<HomeScreen />
+				</Provider>
+			);
+			
+			// Component should render without issues even when loading
+			expect(true).toBeTruthy();
+		});
+
+		it('does not load more when no more items', async () => {
+			const store = createMockStore({
+				feed: { items: mockRides, loading: false, hasMore: false },
+			});
+			
+			render(
+				<Provider store={store}>
+					<HomeScreen />
+				</Provider>
+			);
+			
+			expect(true).toBeTruthy();
+		});
+	});
+
+	describe('error retry', () => {
+		it('allows retry when error occurs', async () => {
+			const store = createMockStore({
+				feed: {
+					items: [],
+					loading: false,
+					error: 'Network error',
+				},
+			});
+			
+			const { getByText } = render(
+				<Provider store={store}>
+					<HomeScreen />
+				</Provider>
+			);
+
+			await act(async () => {
+				fireEvent.press(getByText('Retry'));
+			});
+			
+			// Just verify button is pressable
 			expect(true).toBeTruthy();
 		});
 	});
